@@ -42,6 +42,59 @@ const BlueprintDisplay = ({ blueprint }) => {
                       <li key={i}>{point}</li>
                     ))}
                   </ul>
+                  {/* Rich blocks preview */}
+                  {Array.isArray(slide.blocks) && slide.blocks.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      <h4 className="font-semibold">Blocks:</h4>
+                      {slide.blocks.map((b, i) => {
+                        const type = (b.type || '').toLowerCase();
+                        if (type === 'paragraph') {
+                          return <p key={i} className="text-white/80 text-sm">{b.text || b.content}</p>;
+                        }
+                        if (type === 'bullet_points') {
+                          const items = Array.isArray(b.items) ? b.items : Array.isArray(b.content) ? b.content : [];
+                          return (
+                            <ul key={i} className="list-disc pl-5 space-y-1 text-white/85">
+                              {items.slice(0, 6).map((it, idx) => <li key={idx}>{String(it)}</li>)}
+                            </ul>
+                          );
+                        }
+                        if (type === 'statistic_highlight') {
+                          return (
+                            <div key={i} className="rounded border border-white/10 bg-white/5 p-3">
+                              <div className="mother-of-pearl-text text-3xl font-bold">{b.value}</div>
+                              {b.description && <div className="text-white/80">{b.description}</div>}
+                            </div>
+                          );
+                        }
+                        if (type === 'pull_quote') {
+                          return (
+                            <blockquote key={i} className="border-l-2 border-white/20 pl-3 italic text-white/80">
+                              “{b.quote || b.text}” {b.attribution && <span className="text-white/60">— {b.attribution}</span>}
+                            </blockquote>
+                          );
+                        }
+                        if (type === 'callout') {
+                          return (
+                            <div key={i} className="rounded-lg border border-white/15 bg-white/5 p-3">
+                              {b.title && <div className="text-white font-semibold mb-1">{b.title}</div>}
+                              <div className="text-white/85 text-sm">{b.text || b.content}</div>
+                            </div>
+                          );
+                        }
+                        if (type === 'image_request') {
+                          return <div key={i} className="text-xs text-white/70">[AI Image Request] {b.prompt || b.description}</div>;
+                        }
+                        if (type === 'diagram_request') {
+                          return <pre key={i} className="text-xs bg-white/5 rounded p-2 text-white/80 overflow-auto">{b.spec || b.code || 'diagram'}</pre>;
+                        }
+                        if (type === 'table_request') {
+                          return <div key={i} className="text-xs text-white/70">[Table] {Array.isArray(b.headers) ? b.headers.join(' | ') : ''}</div>;
+                        }
+                        return <div key={i} className="text-xs text-white/60">[Unknown block]</div>;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div>
                   {slide.visual_suggestion && (

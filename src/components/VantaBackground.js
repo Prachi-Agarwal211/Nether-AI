@@ -109,18 +109,75 @@ const VantaBackground = () => {
     };
   }, [isVisible]); // Initialize when visible
 
-  // This effect handles the color palette cycling and depends on the vantaEffect state
+  // Smoothly tween Vanta fog colors using requestAnimationFrame
   useEffect(() => {
     if (!vantaEffect) return;
 
-    let paletteIndex = 0;
-    const colorInterval = setInterval(() => {
-      paletteIndex = (paletteIndex + 1) % colorPalettes.length;
-      // Use setOptions to update the live Vanta effect
-      vantaEffect.setOptions(colorPalettes[paletteIndex]);
-    }, 10000);
+    // Helper converters
+    const hexStrToInt = (hex) => {
+      if (!hex) return null;
+      const s = hex.trim().replace('#', '');
+      const full = s.length === 3 ? s.split('').map(c => c + c).join('') : s;
+      const n = parseInt(full, 16);
+      return Number.isFinite(n) ? n : null;
+    };
+    const intToRgb = (n) => ({ r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 });
+    const rgbToInt = ({ r, g, b }) => ((r & 255) << 16) | ((g & 255) << 8) | (b & 255);
+    const mix = (a, b, t) => {
+      const ar = intToRgb(a), br = intToRgb(b);
+      const r = Math.round(ar.r + (br.r - ar.r) * t);
+      const g = Math.round(ar.g + (br.g - ar.g) * t);
+      const bch = Math.round(ar.b + (br.b - ar.b) * t);
+      return rgbToInt({ r, g, b: bch });
+    };
+    const easeInOut = (t) => 0.5 - Math.cos(Math.PI * t) / 2;
 
-    return () => clearInterval(colorInterval);
+    // Build palette list from CSS variables if present, else fallback defaults
+    const computed = getComputedStyle(document.documentElement);
+    const acc1 = hexStrToInt(computed.getPropertyValue('--gds-accent-primary'));
+    const acc2 = hexStrToInt(computed.getPropertyValue('--gds-accent-secondary'));
+    const neut = hexStrToInt(computed.getPropertyValue('--gds-neutral'));
+    const derived = (acc1 && acc2 && neut)
+      ? [
+          { highlight: acc1, midtone: acc2, lowlight: neut },
+          { highlight: acc2, midtone: neut, lowlight: acc1 },
+          { highlight: neut, midtone: acc1, lowlight: acc2 },
+        ]
+      : colorPalettes;
+
+    let rafId;
+    const segmentMs = 12000; // 12s per transition
+    let segStart = performance.now();
+    let segIndex = 0;
+
+    const tick = (now) => {
+      const from = derived[segIndex % derived.length];
+      const to = derived[(segIndex + 1) % derived.length];
+      const t = Math.min(1, (now - segStart) / segmentMs);
+      const te = easeInOut(t);
+      // Interpolate each channel
+      const curr = {
+        highlight: mix(from.highlight, to.highlight, te),
+        midtone: mix(from.midtone, to.midtone, te),
+        lowlight: mix(from.lowlight, to.lowlight, te),
+      };
+      // Update running Vanta effect
+      vantaEffect.setOptions({
+        highlightColor: curr.highlight,
+        midtoneColor: curr.midtone,
+        lowlightColor: curr.lowlight,
+      });
+      if (t >= 1) {
+        segIndex = (segIndex + 1) % derived.length;
+        segStart = now;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [vantaEffect]);
 
   return <div ref={vantaRef} className="fixed top-0 left-0 w-full h-full z-[-1] pointer-events-none" />;

@@ -42,6 +42,7 @@ const initialState = {
     slideCount: 10,
     blueprint: null,
     slideRecipes: [],
+    themeRuntime: null,
     activeSlideIndex: 0,
   },
   history: [],
@@ -498,12 +499,14 @@ export const useAppStore = create(
             
             const data = await response.json();
             const recipes = data.recipes || [];
+            const theme_runtime = data.theme_runtime || null;
             
             set(state => ({
               isLoading: false,
               presentation: {
                 ...state.presentation,
                 slideRecipes: recipes,
+                themeRuntime: theme_runtime,
                 activeSlideIndex: 0,
               },
             }));
@@ -550,7 +553,8 @@ export const useAppStore = create(
                   created_at: new Date().toISOString(),
                 },
                 slides: presentation.slideRecipes,
-                theme: 'default', // Could be configurable
+                theme_runtime: presentation.themeRuntime,
+                theme_gds: presentation.blueprint?.theme || null,
               }),
             });
             

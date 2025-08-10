@@ -4,15 +4,18 @@
 import { useAppStore } from '@/utils/zustand-store';
 import { SlideRenderer } from '@/components/slide-renderer';
 import { useState } from 'react';
+import ThemeProvider from '@/components/ThemeProvider';
 
 export default function DeckView() {
   const recipes = useAppStore((s) => s.presentation.slideRecipes);
   const activeIndex = useAppStore((s) => s.presentation.activeSlideIndex);
+  const themeRuntime = useAppStore((s) => s.presentation.themeRuntime);
   const isLoading = useAppStore((s) => s.isLoading);
   const setActiveSlideIndex = useAppStore((s) => s.setActiveSlideIndex);
   const exportToPPTX = useAppStore((s) => s.exportToPPTX);
   
   const [exportError, setExportError] = useState(null);
+  const [showGrid, setShowGrid] = useState(false);
 
   const enterFullscreen = () => {
     const el = document.documentElement;
@@ -48,6 +51,12 @@ export default function DeckView() {
           <div className="text-white/80">Slide {activeIndex + 1} of {recipes.length}</div>
           <div className="flex gap-2">
             <button 
+              className="secondary-button"
+              onClick={() => setShowGrid(v => !v)}
+            >
+              {showGrid ? 'Hide Grid' : 'Show Grid'}
+            </button>
+            <button 
               className="secondary-button" 
               onClick={handleExport}
               disabled={isLoading}
@@ -63,9 +72,9 @@ export default function DeckView() {
             Export failed: {exportError}
           </div>
         )}
-        <div className="aspect-video bg-black/30 border border-white/10 rounded">
-          <SlideRenderer recipe={recipes[activeIndex]} />
-        </div>
+        <ThemeProvider className="aspect-video bg-black/30 border border-white/10 rounded block">
+          <SlideRenderer recipe={{ ...recipes[activeIndex], theme_runtime: themeRuntime }} showGrid={showGrid} />
+        </ThemeProvider>
       </div>
       <div className="lg:col-span-1 p-6 border-l border-white/10 bg-black/30">
         <h3 className="text-lg font-semibold mb-2">AI Assistant (MVP)</h3>

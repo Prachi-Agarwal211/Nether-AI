@@ -1,48 +1,54 @@
-// src/core/ai.js
-// Direct Google Gemini AI logic.
+ const GOOGLE_GEMINI_API_KEY = process.env.GOOGLE_GEMINI_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_GEMINI_API_KEY;
+ const DEFAULT_MODEL = 'gemini-2.0-flash';
 
-const GOOGLE_GEMINI_API_KEY = process.env.GOOGLE_GEMINI_API_KEY;
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+ async function callGoogleGemini({ system, user, json = true }) {
+   if (!GOOGLE_GEMINI_API_KEY) {
+     // No key: return null so the caller can trigger fallbacks
+     return null;
+   }
 
-async function callGoogleGemini({ system, user, json = true }) {
-  if (!GOOGLE_GEMINI_API_KEY) {
-    // No key: return null so the caller can trigger fallbacks
-    return null;
-  }
+   // Build request body following Gemini REST API schema
+   const body = {
+     contents: user ? [{ role: 'user', parts: [{ text: user }] }] : [],
+     generationConfig: {
+       response_mime_type: json ? 'application/json' : 'text/plain',
+     },
+   };
 
-  const messages = [];
-  if (system) messages.push({ role: 'system', content: system });
-  if (user) messages.push({ role: 'user', content: user });
+   if (system) {
+     // Use system_instruction rather than a 'system' role message
+     body.system_instruction = { parts: [{ text: system }] };
+   }
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_MODEL}:generateContent`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': GOOGLE_GEMINI_API_KEY,
-    },
-    body: JSON.stringify({
-      contents: messages.map(msg => ({ role: msg.role, parts: [{ text: msg.content }] })),
-      generationConfig: {
-        response_mime_type: json ? 'application/json' : 'text/plain',
-      },
-    }),
-  });
+   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_MODEL}:generateContent`, {
+     method: 'POST',
+     headers: {
+       'Content-Type': 'application/json',
+       'x-goog-api-key': GOOGLE_GEMINI_API_KEY,
+     },
+     body: JSON.stringify(body),
+   });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(`Google Gemini API error: ${error.error.message}`);
-  }
+   if (!res.ok) {
+     let errMsg = 'Unknown Google Gemini API error';
+     try {
+       const error = await res.json();
+       errMsg = error?.error?.message || JSON.stringify(error);
+     } catch (_) {}
+     throw new Error(`Google Gemini API error: ${errMsg}`);
+   }
 
-  const data = await res.json();
-  const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!content) throw new Error('Empty Google Gemini API response');
+   const data = await res.json();
+   const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+   if (!content) throw new Error('Empty Google Gemini API response');
 
-  try {
-    return json ? JSON.parse(content) : content;
-  } catch {
-    return null;
-  }
-}
+   try {
+     return json ? JSON.parse(content) : content;
+   } catch {
+     // If model returned non-JSON while json=true, signal fallback
+     return null;
+   }
+ }
 
 // 6.2 generate_angles
 export async function generateStrategicAngles(topic) {
@@ -149,29 +155,48 @@ export async function generateBlueprint(topic, angle, slideCount = 10) {
     const count = clamp(slideCount, 3, 15);
 
     const system = `
-      You are an expert presentation creator and content strategist. Your task is to generate a comprehensive and impressive blueprint for a presentation.
-      This blueprint must be highly detailed, creative, and structured, providing a complete narrative arc.
-      For each slide, you must provide a meaningful title, 3-5 detailed content points, specific and actionable visual suggestions (including ideas for diagrams, charts, or powerful imagery), and insightful speaker notes.
-      You must also create a cohesive theme for the presentation, including a name, a descriptive paragraph, and a specific color palette.
-      Your output must be a single, valid JSON object and nothing else.
-    `;
+      Act as a Brand Designer, Layout Artist, and Content Strategist.
+      Task: Generate a comprehensive presentation blueprint with a Generative Design System (GDS) and rich content blocks.
+      Requirements:
+      - Provide a cohesive theme (GDS) with extended palette and typography. Ensure high contrast suitable for dark backgrounds with white text.
+      - For each slide, provide: title, 3-5 detailed content points OR rich content blocks (prefer blocks), visual suggestions, and optional speaker notes.
+      - Rich Content Blocks taxonomy includes: bullet_points, paragraph, statistic_highlight, pull_quote, callout, image_request, diagram_request, table_request.
+      - Keep slides concise; 1–3 blocks per slide. Blocks may coexist with content_points; renderer prioritizes blocks.
+      Output strictly valid JSON only.`;
 
     const user = `
       Generate a ${count}-slide presentation blueprint for the topic: "${topic}".
-      The chosen angle for this presentation is: "${angle.title}".
+      The chosen angle for this presentation is: ${JSON.stringify({ angle_id: angle.angle_id, title: angle.title, description: angle.description, audience: angle.audience })}.
 
-      Your response must be a JSON object that follows this exact structure, filling in all values with high-quality, relevant content. Do not use placeholder text.
+      Your response must be a JSON object that follows this exact structure, filling in all values with high-quality, relevant content. Do not use placeholder text. Respect the exact field names and constraints.
       {
         "topic": "The topic of the presentation",
+        "chosen_angle": { "angle_id": "...", "title": "...", "description": "...", "audience": "Technical|General|Executive|Academic|Students" },
+        "slide_count": ${count},
         "theme": {
           "name": "A creative and relevant theme name",
           "description": "A detailed paragraph describing the theme's focus, tone, and visual direction.",
           "palette": {
-            "primary_color": "A hex code for the main color",
-            "accent_color_1": "A hex code for a vibrant accent color",
-            "accent_color_2": "A hex code for a secondary accent or background color",
-            "text_color": "A hex code for the main text color"
-          }
+            "text_primary": "#ffffff",
+            "text_secondary": "#cccccc",
+            "background_primary": "#0b0b0b",
+            "background_secondary": "#111111",
+            "accent_primary": "#ffe1c6",
+            "accent_secondary": "#ffd199",
+            "data_positive": "#5cc98a",
+            "data_negative": "#ff6b6b",
+            "neutral": "#888888"
+          },
+          "typography": {
+            "heading_font": "Inter",
+            "body_font": "Lora",
+            "heading_scale": 1.3,
+            "body_scale": 1.0,
+            "line_height": 1.4
+          },
+          "mood_keywords": ["minimalist","bold","high-contrast"],
+          "iconography": "thin-outline",
+          "shapes_motif": "rounded-cards"
         },
         "slides": [
           {
@@ -182,6 +207,10 @@ export async function generateBlueprint(topic, angle, slideCount = 10) {
               "A detailed, topic-specific point.",
               "Another detailed, topic-specific point.",
               "A final detailed, topic-specific point."
+            ],
+            "blocks": [
+              { "bullet_points": { "items": ["Point A","Point B","Point C"] } },
+              { "image_request": { "keywords": ["topic","abstract"], "usage": "background", "alt_hint": "atmospheric" } }
             ],
             "visual_suggestion": {
               "description": "A specific and descriptive suggestion for a visual element for this slide."
@@ -198,7 +227,7 @@ export async function generateBlueprint(topic, angle, slideCount = 10) {
     } catch (_) {}
 
     // Validate minimal contract per Section 17.2
-    if (!out || !Array.isArray(out.slides) || out.slides.length !== count) {
+    if (!out || !Array.isArray(out.slides)) {
       // Deterministic fallback outline
       const slides = Array.from({ length: count }).map((_, i) => ({
         slide_id: `s-${String(i + 1).padStart(2, '0')}`,
@@ -215,11 +244,112 @@ export async function generateBlueprint(topic, angle, slideCount = 10) {
         topic,
         chosen_angle: angle,
         slide_count: count,
+        theme: {
+          name: 'Nether Default',
+          description: 'Dark background with pearl accent; readable white text and subtle grays for secondary elements.',
+          palette: { background: '#000000', primary: '#ffffff', secondary: '#cccccc', accent: '#ffe1c6' },
+        },
         slides,
       };
     }
 
-    return out;
+    // Sanitize and normalize
+    const safeStr = (v, max) => String(v || '').slice(0, max);
+    // Build extended GDS
+    const pal = out?.theme?.palette || {};
+    const typ = out?.theme?.typography || {};
+    const clampNum = (n, lo, hi, d) => {
+      const v = Number(n);
+      return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d;
+    };
+    const theme = {
+      name: safeStr(out?.theme?.name || 'Nether Theme', 60),
+      description: safeStr(out?.theme?.description || 'Cohesive dark theme with pearl accent.', 320),
+      palette: {
+        text_primary: pal.text_primary || pal.primary || '#ffffff',
+        text_secondary: pal.text_secondary || '#cccccc',
+        background_primary: pal.background_primary || pal.background || '#000000',
+        background_secondary: pal.background_secondary || '#111111',
+        accent_primary: pal.accent_primary || pal.accent || '#ffe1c6',
+        accent_secondary: pal.accent_secondary || '#ffd199',
+        data_positive: pal.data_positive || '#5cc98a',
+        data_negative: pal.data_negative || '#ff6b6b',
+        neutral: pal.neutral || '#888888',
+      },
+      typography: {
+        heading_font: safeStr(typ.heading_font || 'Inter', 40),
+        body_font: safeStr(typ.body_font || 'Lora', 40),
+        heading_scale: clampNum(typ.heading_scale, 1.0, 1.6, 1.3),
+        body_scale: clampNum(typ.body_scale, 0.9, 1.1, 1.0),
+        line_height: clampNum(typ.line_height, 1.2, 1.6, 1.4),
+      },
+      mood_keywords: Array.isArray(out?.theme?.mood_keywords) ? out.theme.mood_keywords.slice(0, 8).map((s) => safeStr(s, 24)) : ['minimalist','bold','high-contrast'],
+      iconography: out?.theme?.iconography ? safeStr(out.theme.iconography, 40) : undefined,
+      shapes_motif: out?.theme?.shapes_motif ? safeStr(out.theme.shapes_motif, 40) : undefined,
+    };
+
+    // Ensure slides length matches count; clamp and fix fields
+    const slidesIn = out.slides.slice(0, count);
+    while (slidesIn.length < count) {
+      const i = slidesIn.length;
+      slidesIn.push({
+        slide_id: `s-${String(i + 1).padStart(2, '0')}`,
+        slide_index: i + 1,
+        slide_title: i === 0 ? 'Introduction' : i === count - 1 ? 'Conclusion' : `Key Idea ${i}`,
+        content_points: ['Main point', 'Supporting detail', 'Example'],
+        visual_suggestion: { description: 'Subtle background visual related to the topic.' },
+      });
+    }
+
+    const normalizeBlocks = (blocks) => {
+      if (!Array.isArray(blocks)) return undefined;
+      const out = [];
+      for (const b of blocks.slice(0, 3)) {
+        if (b?.bullet_points?.items && Array.isArray(b.bullet_points.items)) {
+          out.push({ bullet_points: { items: b.bullet_points.items.slice(0, 6).map((x) => safeStr(x, 180)) } });
+        } else if (b?.paragraph?.text) {
+          out.push({ paragraph: { text: safeStr(b.paragraph.text, 600) } });
+        } else if (b?.statistic_highlight?.value) {
+          out.push({ statistic_highlight: { value: safeStr(b.statistic_highlight.value, 60), description: safeStr(b.statistic_highlight.description || '', 180) } });
+        } else if (b?.pull_quote?.text) {
+          out.push({ pull_quote: { text: safeStr(b.pull_quote.text, 240), author: b.pull_quote.author ? safeStr(b.pull_quote.author, 80) : undefined } });
+        } else if (b?.callout?.title) {
+          out.push({ callout: { title: safeStr(b.callout.title, 80), text: safeStr(b.callout.text || '', 240) } });
+        } else if (b?.image_request?.keywords) {
+          const usage = ['background','inline'].includes(b.image_request.usage) ? b.image_request.usage : 'inline';
+          out.push({ image_request: { keywords: (b.image_request.keywords || []).slice(0, 8).map((k) => safeStr(k, 32)), usage, alt_hint: b.image_request.alt_hint ? safeStr(b.image_request.alt_hint, 80) : undefined } });
+        } else if (b?.diagram_request?.kind) {
+          const kind = ['flowchart','timeline','org','mindmap'].includes(b.diagram_request.kind) ? b.diagram_request.kind : 'flowchart';
+          out.push({ diagram_request: { kind, hint: b.diagram_request.hint ? safeStr(b.diagram_request.hint, 120) : undefined } });
+        } else if (b?.table_request?.columns) {
+          out.push({ table_request: { columns: (b.table_request.columns || []).slice(0, 6).map((c) => safeStr(c, 24)), rows_hint: b.table_request.rows_hint ? safeStr(b.table_request.rows_hint, 160) : '' } });
+        }
+      }
+      return out.length ? out : undefined;
+    };
+
+    const slides = slidesIn.map((s, i) => ({
+      slide_id: s.slide_id || `s-${String(i + 1).padStart(2, '0')}`,
+      slide_index: i + 1,
+      slide_title: safeStr(s.slide_title || `Slide ${i + 1}`, 90),
+      content_points: Array.isArray(s.content_points) && s.content_points.length
+        ? s.content_points.slice(0, 5).map((p) => safeStr(p, 180))
+        : ['Main point', 'Supporting detail', 'Example'],
+      blocks: normalizeBlocks(s.blocks),
+      speaker_notes: s.speaker_notes ? safeStr(s.speaker_notes, 600) : undefined,
+      visual_suggestion: s.visual_suggestion?.description
+        ? { ...s.visual_suggestion, description: safeStr(s.visual_suggestion.description, 180) }
+        : (s.visual_suggestion ? s.visual_suggestion : { description: 'Neutral background visual.' }),
+      attachments: Array.isArray(s.attachments) ? s.attachments.slice(0, 8) : undefined,
+    }));
+
+    return {
+      topic: safeStr(out.topic || topic, 200),
+      chosen_angle: out.chosen_angle || angle,
+      slide_count: count,
+      theme,
+      slides,
+    };
 }
 
 
@@ -328,58 +458,126 @@ export async function generateSlideRecipes(blueprint) {
   if (!blueprint || !Array.isArray(blueprint.slides)) throw new Error('Valid blueprint required');
 
   const system = [
-    'You are a creative director choosing from a defined component library and layout patterns.',
-    'Return JSON with { theme_runtime, recipes: [...] }. Ensure readability, consistent title sizes, and high contrast between text and background as defined by the generated theme. Use the theme\'s accent colors sparingly.',
-    'For added visual appeal on title or section break slides, you may include background.generative_background with a library name and options. Colors used must come from the presentation\'s GDS palette.',
-    // Part 4: Grid composer
-    'Compose layouts on a 12-column grid. For each element, include optional grid: { colStart, colEnd, rowStart, rowEnd }. Avoid overlap unless layered by order.'
+    'Act as a Layout Composer using a 12-column grid system with safe margins.',
+    'Return strictly JSON: { theme_runtime, recipes: Recipe[] }.',
+    'theme_runtime derives from GDS: { background, primary, secondary, accent } mapped from theme.palette/background/text/accent.',
+    'Each Recipe corresponds to a slide and contains elements with required grid coordinates.',
+    'Element spec: { type: Title|BulletedList|Paragraph|Image|Diagram|Table|Quote|Stat, content, style_hints, grid: { colStart, colEnd, rowStart, rowEnd }, background_element?, accessibility? }. Maintain readability, consistent scale, and respect theme GDS typography and palette.',
+    'Composition rules: long titles span 8–12 cols top rows; short lists center/right; diagrams get generous area; images as background add overlay when specified; avoid edges.',
+    'Avoid overlapping critical content; if layers are intentional, order elements accordingly.',
   ].join('\n');
 
-  const user = JSON.stringify({ blueprint });
+  const user = JSON.stringify({ blueprint, instructions: {
+    grid: 'Use 12-column grid, include grid for each element.',
+    theme: 'Derive colors from blueprint.theme.palette; ensure contrast for dark bg with white text.',
+    accessibility: 'Provide aria_label when useful.',
+  }});
   let out = null;
   try {
     out = await callGoogleGemini({ system, user, json: true });
   } catch (_) {}
 
   // Validate minimal contract (Section 17.4)
-  const mkDefault = () => ({
-    theme_runtime: {
-      background: '#000000', primary: '#ffffff', secondary: '#cccccc', accent: '#ffe1c6',
-    },
-    recipes: blueprint.slides.map((s) => ({
-      slide_id: s.slide_id,
-      layout_type: 'TitleAndBullets',
-      background: { color: '#000000', overlay: false },
-      elements: [
-        { type: 'Title', content: s.slide_title, style_hints: { size: 'xl', accent: true } },
-        { type: 'BulletedList', content: s.content_points, style_hints: { size: 'md' } },
+  const mkDefault = () => {
+    const pal = blueprint?.theme?.palette || {};
+    const theme_runtime = {
+      background: pal.background_primary || pal.background || '#000000',
+      primary: pal.text_primary || pal.primary || '#ffffff',
+      secondary: pal.text_secondary || pal.secondary || '#cccccc',
+      accent: pal.accent_primary || pal.accent || '#ffe1c6',
+    };
+
+    const gridPresets = {
+      TitleOnly: [
+        { type: 'Title', grid: { colStart: 2, colEnd: 12, rowStart: 1, rowEnd: 3 }, style_hints: { size: 'xl', align: 'center', accent: true } },
       ],
-    })),
-  });
+      Quote: [
+        { type: 'Title', grid: { colStart: 2, colEnd: 10, rowStart: 1, rowEnd: 2 }, style_hints: { size: 'lg', accent: true } },
+        { type: 'Quote', grid: { colStart: 2, colEnd: 11, rowStart: 2, rowEnd: 5 }, style_hints: { size: 'md' } },
+      ],
+      TitleAndBullets: [
+        { type: 'Title', grid: { colStart: 2, colEnd: 9, rowStart: 1, rowEnd: 2 }, style_hints: { size: 'lg', accent: true } },
+        { type: 'BulletedList', grid: { colStart: 2, colEnd: 9, rowStart: 2, rowEnd: 6 }, style_hints: { size: 'md' } },
+      ],
+    };
+
+    const recipes = blueprint.slides.map((s, idx) => {
+      const isTitle = idx === 0;
+      const isSection = idx > 0 && (idx % 5 === 0);
+      const layout_type = isTitle ? 'TitleOnly' : isSection ? 'Quote' : 'TitleAndBullets';
+      const background = { color: theme_runtime.background, overlay: false };
+      const preset = gridPresets[layout_type];
+      const elements = preset.map((el) => ({
+        ...el,
+        content: el.type === 'Title' ? s.slide_title : (el.type === 'BulletedList' ? (s.blocks?.find(b=>b.bullet_points)?.bullet_points?.items || s.content_points) : (s.speaker_notes || '')),
+      }));
+      const backgroundExtras = (isTitle || isSection) ? { generative_background: { library: 'gradient-js', options: { colors: [theme_runtime.background, theme_runtime.accent] } } } : {};
+      return { slide_id: s.slide_id, layout_type, background: { ...background, ...backgroundExtras }, elements };
+    });
+
+    return { theme_runtime, recipes };
+  };
 
   if (!out || !Array.isArray(out.recipes) || out.recipes.length !== blueprint.slides.length) {
     return mkDefault();
   }
 
   // Light sanitation with grid support and new element types
-  const theme_runtime = out.theme_runtime || { background: '#000', primary: '#fff', secondary: '#ccc', accent: '#ffe1c6' };
-  const recipes = out.recipes.map((r, i) => ({
-    slide_id: r.slide_id || blueprint.slides[i].slide_id,
-    layout_type: r.layout_type || 'TitleAndBullets',
-    background: r.background || { color: theme_runtime.background },
-    elements: Array.isArray(r.elements) && r.elements.length > 0 ? r.elements.map((el) => ({
-      type: el.type,
-      content: el.content,
-      style_hints: el.style_hints || {},
-      position_hints: el.position_hints || {},
-      grid: el.grid || undefined,
-      diagram: el.diagram || undefined,
-      table: el.table || undefined,
-    })) : [
-      { type: 'Title', content: blueprint.slides[i].slide_title },
-      { type: 'BulletedList', content: blueprint.slides[i].content_points },
-    ],
-  }));
+  const theme_runtime = out.theme_runtime || (() => {
+    const pal = blueprint?.theme?.palette || {};
+    return {
+      background: pal.background_primary || pal.background || '#000000',
+      primary: pal.text_primary || pal.primary || '#ffffff',
+      secondary: pal.text_secondary || pal.secondary || '#cccccc',
+      accent: pal.accent_primary || pal.accent || '#ffe1c6',
+    };
+  })();
+
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  const within = (n, lo, hi) => n >= lo && n <= hi;
+  const fixGrid = (g) => {
+    const cg = {
+      colStart: clamp(parseInt(g?.colStart || 1, 10), 1, 12),
+      colEnd: clamp(parseInt(g?.colEnd || 7, 10), 2, 13),
+      rowStart: clamp(parseInt(g?.rowStart || 1, 10), 1, 100),
+      rowEnd: clamp(parseInt(g?.rowEnd || 3, 10), 2, 200),
+    };
+    if (cg.colEnd <= cg.colStart) cg.colEnd = Math.min(13, cg.colStart + 1);
+    if (cg.rowEnd <= cg.rowStart) cg.rowEnd = cg.rowStart + 1;
+    return cg;
+  };
+
+  const recipes = out.recipes.map((r, i) => {
+    const fallbackLayout = 'TitleAndBullets';
+    const slide = blueprint.slides[i];
+    const cleaned = {
+      slide_id: r.slide_id || slide.slide_id,
+      layout_type: r.layout_type || fallbackLayout,
+      background: r.background || { color: theme_runtime.background },
+      elements: Array.isArray(r.elements) ? r.elements.slice(0, 8).map((e, idx) => ({
+        type: e.type || (idx === 0 ? 'Title' : 'Paragraph'),
+        content: e.content ?? (idx === 0 ? slide.slide_title : (slide.blocks?.find(b=>b.paragraph)?.paragraph?.text || slide.content_points || '')),
+        style_hints: e.style_hints || { size: idx === 0 ? 'lg' : 'md' },
+        grid: fixGrid(e.grid),
+        background_element: !!e.background_element,
+        accessibility: e.accessibility,
+      })) : [],
+    };
+    // basic overlap avoidance: bump rowStart for later elements if overlapping
+    for (let a = 0; a < cleaned.elements.length; a++) {
+      for (let b = a + 1; b < cleaned.elements.length; b++) {
+        const A = cleaned.elements[a].grid, B = cleaned.elements[b].grid;
+        const colOverlap = !(B.colStart >= A.colEnd || B.colEnd <= A.colStart);
+        const rowOverlap = !(B.rowStart >= A.rowEnd || B.rowEnd <= A.rowStart);
+        if (colOverlap && rowOverlap) {
+          const delta = (A.rowEnd - A.rowStart) + 1;
+          cleaned.elements[b].grid.rowStart = A.rowEnd + 1;
+          cleaned.elements[b].grid.rowEnd = cleaned.elements[b].grid.rowStart + delta;
+        }
+      }
+    }
+    return cleaned;
+  });
 
   return { theme_runtime, recipes };
 }
