@@ -155,13 +155,15 @@ export async function generateBlueprint(topic, angle, slideCount = 10) {
     const count = clamp(slideCount, 3, 15);
 
     const system = `
-      Act as a Brand Designer, Layout Artist, and Content Strategist.
-      Task: Generate a comprehensive presentation blueprint with a Generative Design System (GDS) and rich content blocks.
+      You are a Creative Director and Brand Designer.
+      Goal: Create a high-quality presentation blueprint that includes a Generative Design System (GDS) and rich, varied content blocks suitable for rendering in a 12-column grid.
       Requirements:
-      - Provide a cohesive theme (GDS) with extended palette and typography. Ensure high contrast suitable for dark backgrounds with white text.
-      - For each slide, provide: title, 3-5 detailed content points OR rich content blocks (prefer blocks), visual suggestions, and optional speaker notes.
-      - Rich Content Blocks taxonomy includes: bullet_points, paragraph, statistic_highlight, pull_quote, callout, image_request, diagram_request, table_request.
-      - Keep slides concise; 1–3 blocks per slide. Blocks may coexist with content_points; renderer prioritizes blocks.
+      - Produce a cohesive GDS with: extended palette (text_primary, text_secondary, background_primary, background_secondary, accent_primary, accent_secondary, data_positive, data_negative, neutral), typography pairing (heading_font, body_font, heading_scale, body_scale, line_height), mood_keywords, and optional iconography/shapes_motif. Ensure high contrast for dark backgrounds and readability.
+      - For each slide: include a strong title, and 3–5 content points OR 1–3 rich content blocks (prefer blocks), plus a visual_suggestion and optional speaker_notes.
+      - Use a variety of Rich Content Blocks: bullet_points, paragraph, statistic_highlight, pull_quote, callout, image_request, diagram_request, table_request. Choose blocks that enhance narrative and visual interest.
+      - Keep slides concise (1–3 blocks). Blocks may coexist with content_points; renderer prioritizes blocks.
+      - Be concrete, accurate, audience-appropriate. Avoid vagueness and filler.
+      - Take your time to craft each element properly.
       Output strictly valid JSON only.`;
 
     const user = `
@@ -458,19 +460,24 @@ export async function generateSlideRecipes(blueprint) {
   if (!blueprint || !Array.isArray(blueprint.slides)) throw new Error('Valid blueprint required');
 
   const system = [
-    'Act as a Layout Composer using a 12-column grid system with safe margins.',
-    'Return strictly JSON: { theme_runtime, recipes: Recipe[] }.',
+    'You are a Senior Layout Composer and Frontend Developer. Take your time to produce high-quality slides.',
+    'Return strictly JSON: { theme_runtime, recipes: Recipe[] }. No extra commentary.',
     'theme_runtime derives from GDS: { background, primary, secondary, accent } mapped from theme.palette/background/text/accent.',
-    'Each Recipe corresponds to a slide and contains elements with required grid coordinates.',
-    'Element spec: { type: Title|BulletedList|Paragraph|Image|Diagram|Table|Quote|Stat, content, style_hints, grid: { colStart, colEnd, rowStart, rowEnd }, background_element?, accessibility? }. Maintain readability, consistent scale, and respect theme GDS typography and palette.',
-    'Composition rules: long titles span 8–12 cols top rows; short lists center/right; diagrams get generous area; images as background add overlay when specified; avoid edges.',
-    'Avoid overlapping critical content; if layers are intentional, order elements accordingly.',
+    'For each slide (each Recipe) you can choose one of two modes:',
+    '1) Element Grid Mode (backward compatible): provide elements[] with 12-column grid coordinates.',
+    '   Element spec: { type: Title|BulletedList|Paragraph|Image|Diagram|Table|Quote|Stat|Callout, content, style_hints, grid: { colStart, colEnd, rowStart, rowEnd }, background_element?, accessibility? }. Maintain readability, consistent scale, and respect theme GDS typography and palette. Composition rules: long titles span 8–12 cols near top rows; lists align left with ample whitespace; diagrams/tables get generous area; images as background require readable overlays; avoid edges; maintain safe margins.',
+    '2) Code Mode (preferred for maximum fidelity): provide code: { html, css, js } representing a self-contained slide implementation.',
+    '   - All CSS and JS must be inline via <style> and <script> tags or provided in css/js strings; no external libs.',
+    '   - Use the provided GDS palette/typography within CSS (colors, fonts, scale).',
+    '   - Use modern CSS Grid/Flexbox for layout; ensure the design fills a 16:9 viewport responsively.',
+    'Accessibility: provide aria_label for key elements; images include alt text when possible.',
   ].join('\n');
 
   const user = JSON.stringify({ blueprint, instructions: {
-    grid: 'Use 12-column grid, include grid for each element.',
-    theme: 'Derive colors from blueprint.theme.palette; ensure contrast for dark bg with white text.',
-    accessibility: 'Provide aria_label when useful.',
+    grid: 'Use 12-column grid, include {colStart,colEnd,rowStart,rowEnd} for every element. Respect safe margins and avoid edge collisions.',
+    theme: 'Derive colors from blueprint.theme.palette; ensure high contrast for dark background with white text. Use GDS typography scale for sizing.',
+    accessibility: 'Provide aria_label for titles, quotes, stats; include alt in accessibility for images when possible.',
+    backgrounds: 'For title/section slides, you may add a subtle animated generative background using theme accents.',
   }});
   let out = null;
   try {
@@ -554,6 +561,7 @@ export async function generateSlideRecipes(blueprint) {
       slide_id: r.slide_id || slide.slide_id,
       layout_type: r.layout_type || fallbackLayout,
       background: r.background || { color: theme_runtime.background },
+      // Preserve element grid mode when provided
       elements: Array.isArray(r.elements) ? r.elements.slice(0, 8).map((e, idx) => ({
         type: e.type || (idx === 0 ? 'Title' : 'Paragraph'),
         content: e.content ?? (idx === 0 ? slide.slide_title : (slide.blocks?.find(b=>b.paragraph)?.paragraph?.text || slide.content_points || '')),
@@ -562,6 +570,12 @@ export async function generateSlideRecipes(blueprint) {
         background_element: !!e.background_element,
         accessibility: e.accessibility,
       })) : [],
+      // Preserve code mode when provided
+      code: (r.code && (typeof r.code === 'object')) ? {
+        html: typeof r.code.html === 'string' ? r.code.html : undefined,
+        css: typeof r.code.css === 'string' ? r.code.css : undefined,
+        js: typeof r.code.js === 'string' ? r.code.js : undefined,
+      } : undefined,
     };
     // basic overlap avoidance: bump rowStart for later elements if overlapping
     for (let a = 0; a < cleaned.elements.length; a++) {

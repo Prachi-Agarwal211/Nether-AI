@@ -1,15 +1,15 @@
 // src/components/slide-renderer.js
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import Image from 'next/image';
 
 function Title({ content, style_hints = {} }) {
   const size = style_hints.size === 'xl' ? 'text-5xl' : style_hints.size === 'lg' ? 'text-4xl' : 'text-3xl';
-  const accent = style_hints.accent ? 'mother-of-pearl-text' : '';
   const weight = style_hints.weight === 'bold' ? 'font-bold' : 'font-semibold';
   const align = style_hints.align === 'center' ? 'text-center' : style_hints.align === 'right' ? 'text-right' : 'text-left';
-  return <h1 className={`${size} ${weight} ${accent} ${align}`} style={{ color: 'var(--gds-text-primary)', fontFamily: 'var(--gds-font-heading)', lineHeight: 'var(--gds-line-height)' }}>{content}</h1>;
+  const color = style_hints.accent ? 'var(--gds-accent-primary)' : 'var(--gds-text-primary)';
+  return <h1 className={`${size} ${weight} ${align}`} style={{ color, fontFamily: 'var(--gds-font-heading)', lineHeight: 'var(--gds-line-height)' }}>{content}</h1>;
 }
 
 function BulletedList({ content = [], style_hints = {} }) {
@@ -31,7 +31,19 @@ function Paragraph({ content, style_hints = {} }) {
 }
 
 function Quote({ content }) {
-  return <blockquote className="border-l-2 border-white/20 pl-3 italic" style={{ color: 'var(--gds-text-secondary)', fontFamily: 'var(--gds-font-body)', lineHeight: 'var(--gds-line-height)' }}>{content}</blockquote>;
+  return (
+    <blockquote
+      className="pl-3 italic"
+      style={{
+        color: 'var(--gds-text-secondary)',
+        fontFamily: 'var(--gds-font-body)',
+        lineHeight: 'var(--gds-line-height)',
+        borderLeft: '2px solid var(--gds-accent-secondary)'
+      }}
+    >
+      {content}
+    </blockquote>
+  );
 }
 
 function Stat({ content, style_hints = {} }) {
@@ -50,9 +62,21 @@ function Callout({ content }) {
   const title = typeof content === 'object' ? content.title : '';
   const text = typeof content === 'object' ? content.text : String(content);
   return (
-    <div className="rounded-lg border border-white/15 bg-white/5 p-3">
-      {title ? <div className="text-white font-semibold mb-1">{title}</div> : null}
-      <div className="text-white/85 text-sm">{text}</div>
+    <div
+      className="rounded-lg p-3"
+      style={{
+        border: '1px solid var(--gds-accent-secondary)',
+        backgroundColor: 'var(--gds-bg-secondary)'
+      }}
+    >
+      {title ? (
+        <div className="font-semibold mb-1" style={{ color: 'var(--gds-text-primary)', fontFamily: 'var(--gds-font-heading)' }}>
+          {title}
+        </div>
+      ) : null}
+      <div className="text-sm" style={{ color: 'var(--gds-text-secondary)', fontFamily: 'var(--gds-font-body)' }}>
+        {text}
+      </div>
     </div>
   );
 }
@@ -71,14 +95,15 @@ function TableEl({ table }) {
   if (!table) return null;
   const headers = table.headers || [];
   const rows = table.rows || [];
+  const borderStyle = { borderBottom: '1px solid var(--gds-text-secondary)' };
   return (
     <div className="overflow-auto">
-      <table className="min-w-full text-white/90 text-sm">
+      <table className="min-w-full text-sm" style={{ color: 'var(--gds-text-primary)', fontFamily: 'var(--gds-font-body)' }}>
         {headers.length > 0 && (
           <thead>
             <tr>
               {headers.map((h, i) => (
-                <th key={i} className="text-left py-1 px-2 border-b border-white/10">{h}</th>
+                <th key={i} className="text-left py-1 px-2" style={borderStyle}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -87,7 +112,7 @@ function TableEl({ table }) {
           {rows.map((row, r) => (
             <tr key={r}>
               {row.map((cell, c) => (
-                <td key={c} className="py-1 px-2 border-b border-white/5">{cell}</td>
+                <td key={c} className="py-1 px-2" style={borderStyle}>{cell}</td>
               ))}
             </tr>
           ))}
@@ -178,6 +203,50 @@ function renderGenerativeBackground(containerEl, gen) {
 
 export function SlideRenderer({ recipe, showGrid = false }) {
   if (!recipe) return null;
+
+  // Code Mode: render AI-provided HTML/CSS/JS in sandboxed iframe
+  const code = recipe?.code;
+  const iframeRef = useRef(null);
+  useEffect(() => {
+    if (!code || !iframeRef.current) return;
+    const doc = iframeRef.current.contentDocument;
+    if (!doc) return;
+
+    const rt = recipe?.theme_runtime || {};
+    const bg = recipe?.background?.color || rt.background || '#000000';
+    const cssVars = `:root{--gds-text-primary:${rt.primary||'#ffffff'};--gds-text-secondary:${rt.secondary||'#cccccc'};--gds-bg-primary:${rt.background||'#0b0b0f'};--gds-bg-secondary:${rt.background||'#11131a'};--gds-accent-primary:${rt.accent||'#ffe1c6'};--gds-accent-secondary:${rt.accent||'#ffd199'};}`;
+
+    const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+      <meta name="viewport" content="width=device-width,initial-scale=1"/>
+      <style>
+        html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:${bg};}
+        ${cssVars}
+        ${code.css || ''}
+      </style>
+    </head><body>
+      ${code.html || ''}
+      <script>(()=>{try{${code.js || ''}}catch(e){console.error('slide js error',e)}})();</script>
+    </body></html>`;
+
+    doc.open();
+    doc.write(fullHtml);
+    doc.close();
+  }, [code, recipe]);
+
+  if (code && (code.html || code.css || code.js)) {
+    return (
+      <div className="w-full h-full">
+        <iframe
+          ref={iframeRef}
+          title="AI Generated Slide"
+          sandbox="allow-scripts"
+          className="w-full h-full border-0 rounded"
+        />
+      </div>
+    );
+  }
+
+  // Element Grid Mode (existing renderer)
   const bg = recipe?.background?.color || 'transparent';
   const gen = recipe?.background?.generative_background;
   const primary = recipe?.theme_runtime?.primary || '#ffffff';
@@ -187,16 +256,14 @@ export function SlideRenderer({ recipe, showGrid = false }) {
   return (
     <div className="w-full h-full p-6" style={{ background: bg, color: primary, '--color-primary': primary, '--color-secondary': secondary, '--color-accent': accent }} ref={(el) => {
       if (!el) return;
-      // Try to initialize a generative background if specified
       if (gen) {
         const ok = renderGenerativeBackground(el, gen);
         if (!ok) {
-          // fallback remains the solid color
+          // keep solid color
         }
       }
     }}>
       <div className="relative w-full h-full">
-        {/* Optional design grid overlay */}
         {showGrid && (
           <div className="pointer-events-none absolute inset-0" aria-hidden="true"
             style={{
