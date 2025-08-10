@@ -464,19 +464,24 @@ export const useAppStore = create(
           }
         },
         
-        // Slide Generation
+        // Slide Generation (Streaming)
         generateRecipes: async () => {
           const { presentation } = get();
           
           if (!presentation.blueprint) {
             set({ error: 'Please create a presentation outline first' });
-            return [];
+            return;
           }
           
+          // Immediately switch to deck and clear prior recipes to avoid flashing old slides
           set({ 
             isLoading: true, 
             error: null,
             activeView: 'deck',
+            presentation: {
+              ...presentation,
+              slideRecipes: [],
+            },
           });
           
           try {
@@ -484,44 +489,68 @@ export const useAppStore = create(
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ 
-                action: "generate_recipes", 
+                action: "generate_recipes_stream", 
                 payload: { 
                   blueprint: presentation.blueprint,
-                  slideCount: presentation.slideCount,
                 } 
               }),
             });
-            
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.error || "Failed to generate slide content");
+
+            if (!response || !response.body) {
+              throw new Error('Streaming response not available.');
             }
-            
-            const data = await response.json();
-            const recipes = data.recipes || [];
-            const theme_runtime = data.theme_runtime || null;
-            
-            set(state => ({
-              isLoading: false,
-              presentation: {
-                ...state.presentation,
-                slideRecipes: recipes,
-                themeRuntime: theme_runtime,
-                activeSlideIndex: 0,
-              },
-            }));
-            
-            // Save in background
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let done = false;
+            let buffer = '';
+
+            while (!done) {
+              const { value, done: readerDone } = await reader.read();
+              done = readerDone;
+              if (value) buffer += decoder.decode(value, { stream: true });
+
+              let idx;
+              while ((idx = buffer.indexOf('\n')) !== -1) {
+                const line = buffer.slice(0, idx).trim();
+                buffer = buffer.slice(idx + 1);
+                if (!line) continue;
+                if (line.startsWith('data: ')) {
+                  const jsonString = line.slice(6);
+                  if (!jsonString) continue;
+                  try {
+                    const data = JSON.parse(jsonString);
+                    if (data.type === 'recipe' && data.recipe) {
+                      set(state => ({
+                        presentation: {
+                          ...state.presentation,
+                          slideRecipes: [...state.presentation.slideRecipes, data.recipe],
+                          activeSlideIndex: state.presentation.slideRecipes.length,
+                        },
+                      }));
+                    } else if (data.type === 'theme_runtime') {
+                      set(state => ({
+                        presentation: {
+                          ...state.presentation,
+                          themeRuntime: data.theme_runtime || state.presentation.themeRuntime,
+                        },
+                      }));
+                    }
+                  } catch (e) {
+                    console.error('Error parsing stream chunk:', e);
+                  }
+                }
+              }
+            }
+
+            set({ isLoading: false });
             get().savePresentation().catch(console.error);
-            
-            return recipes;
           } catch (error) {
-            console.error('Error generating slide content:', error);
-            set({ 
-              isLoading: false, 
-              error: error.message || 'Failed to generate slide content' 
+            console.error('Error generating slide recipes:', error);
+            set({
+              isLoading: false,
+              error: error.message || 'Failed to generate slide content',
             });
-            return [];
           }
         },
 

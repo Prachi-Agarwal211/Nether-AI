@@ -595,3 +595,107 @@ export async function generateSlideRecipes(blueprint) {
 
   return { theme_runtime, recipes };
 }
+
+// Streaming variant: progressively yield theme and slide recipes
+export async function* generateSlideRecipesStream(blueprint) {
+  if (!blueprint || !Array.isArray(blueprint.slides)) {
+    throw new Error('Valid blueprint required');
+  }
+
+  // Derive theme_runtime similarly to non-streaming path
+  const pal = blueprint?.theme?.palette || {};
+  const theme_runtime = {
+    background: pal.background_primary || pal.background || '#000000',
+    primary: pal.text_primary || pal.primary || '#ffffff',
+    secondary: pal.text_secondary || pal.secondary || '#cccccc',
+    accent: pal.accent_primary || pal.accent || '#ffe1c6',
+  };
+
+  // Yield theme first so the UI can style immediately
+  yield { type: 'theme_runtime', theme_runtime };
+
+  // Helper to clamp grid values (mirror semantics)
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  const fixGrid = (g) => {
+    const cg = {
+      colStart: clamp(parseInt(g?.colStart || 1, 10), 1, 12),
+      colEnd: clamp(parseInt(g?.colEnd || 13, 10), 2, 13),
+      rowStart: clamp(parseInt(g?.rowStart || 1, 10), 1, 100),
+      rowEnd: clamp(parseInt(g?.rowEnd || 3, 10), 2, 200),
+    };
+    if (cg.colEnd <= cg.colStart) cg.colEnd = Math.min(13, cg.colStart + 1);
+    if (cg.rowEnd <= cg.rowStart) cg.rowEnd = cg.rowStart + 1;
+    return cg;
+  };
+
+  // For each slide, synthesize a reasonable default quickly.
+  // In a future iteration, call the model per slide and yield as they arrive.
+  for (let i = 0; i < blueprint.slides.length; i++) {
+    const s = blueprint.slides[i];
+    // Simulate latency to create a live progression effect
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((r) => setTimeout(r, 800));
+
+    const isTitle = i === 0;
+    const layout_type = isTitle ? 'TitleOnly' : 'TitleAndBullets';
+
+    // Build fallback grid elements
+    const elements = [];
+    elements.push({
+      type: 'Title',
+      content: s.slide_title,
+      style_hints: { size: isTitle ? 'xl' : 'lg', align: isTitle ? 'center' : 'left', accent: isTitle },
+      grid: fixGrid({ colStart: isTitle ? 2 : 2, colEnd: isTitle ? 12 : 12, rowStart: 2, rowEnd: isTitle ? 5 : 4 }),
+    });
+    const bullets = !isTitle ? (s.blocks?.find((b) => b.bullet_points)?.bullet_points?.items || s.content_points || []) : [];
+    if (!isTitle) {
+      elements.push({
+        type: 'BulletedList',
+        content: bullets,
+        style_hints: { size: 'md' },
+        grid: fixGrid({ colStart: 2, colEnd: 12, rowStart: 4, rowEnd: 12 }),
+      });
+    }
+
+    const background = { color: theme_runtime.background };
+
+    // Construct code-mode rendition (html/css/js)
+    const htmlParts = [];
+    htmlParts.push(`<!DOCTYPE html>`);
+    htmlParts.push(`<html lang="en">`);
+    htmlParts.push(`<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>`);
+    htmlParts.push(`<body>`);
+    htmlParts.push(`<div class="slide">
+  <header class="title">${(s.slide_title || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</header>
+  ${!isTitle ? `<section class="content">
+    <ul>
+      ${(Array.isArray(bullets) ? bullets : []).slice(0,8).map(b => `<li>${String(b||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</li>`).join('\n      ')}
+    </ul>
+  </section>` : ''}
+</div>`);
+    htmlParts.push(`</body></html>`);
+
+    const css = `:root{color-scheme:light dark}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--color-background,#000);color:var(--color-primary,#fff);font-family:var(--font-body,ui-sans-serif,system-ui);}
+.slide{position:relative;width:100%;height:100%;padding:6vh 6vw;display:flex;flex-direction:column;gap:2vh}
+.title{font-family:var(--font-heading,ui-sans-serif,system-ui);font-size:clamp(28px,6vw,72px);line-height:1.1;letter-spacing:-0.02em;text-wrap:balance;text-align:${isTitle ? 'center' : 'left'};color:var(--color-primary)}
+.content{flex:1;display:flex;align-items:flex-start}
+.content ul{margin:2vh 0 0 1.25rem;padding:0;list-style:disc;color:var(--color-secondary)}
+.content li{margin:0.4em 0;font-size:clamp(14px,2.2vw,22px)}
+`;
+
+    const js = `// Reserved for interactive slides. Access theme via CSS variables.`;
+
+    const recipe = {
+      slide_id: s.slide_id,
+      layout_type,
+      background,
+      elements,
+      code: { html: htmlParts.join('\n'), css, js },
+    };
+
+    yield { type: 'recipe', recipe };
+  }
+}

@@ -2,6 +2,31 @@
 import { NextResponse } from 'next/server';
 import * as AiCore from '@/core/ai';
 
+// Helper to produce a server-sent-events style stream from an async iterator
+function createStreamingResponse(iterator) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async pull(controller) {
+      const { value, done } = await iterator.next();
+      if (done) {
+        controller.close();
+        return;
+      }
+      // Emit as SSE line: data: <json>\n
+      const payload = `data: ${JSON.stringify(value)}\n`;
+      controller.enqueue(encoder.encode(payload));
+    },
+  });
+
+  return new NextResponse(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
+}
+
 // The new route.js file, which is much simpler
 export async function POST(req) {
   try {
@@ -13,6 +38,11 @@ export async function POST(req) {
 
     const { action, payload } = await req.json();
     let result;
+
+    if (action === 'generate_recipes_stream') {
+      const iterator = AiCore.generateSlideRecipesStream(payload?.blueprint || null);
+      return createStreamingResponse(iterator);
+    }
 
     switch (action) {
       case 'generate_angles':
@@ -42,7 +72,7 @@ export async function POST(req) {
         return NextResponse.json({ error: 'Invalid AI action' }, { status: 400 });
     }
     
-    // The result from Vercel AI SDK's `generateObject` is already a JSON object.
+    // The result is a JSON object.
     return NextResponse.json(result);
 
   } catch (err) {
