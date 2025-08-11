@@ -460,25 +460,31 @@ export async function generateSlideRecipes(blueprint) {
   if (!blueprint || !Array.isArray(blueprint.slides)) throw new Error('Valid blueprint required');
 
   const system = [
-    'You are a Senior Layout Composer and Frontend Developer. Take your time to produce high-quality slides.',
-    'Return strictly JSON: { theme_runtime, recipes: Recipe[] }. No extra commentary.',
-    'theme_runtime derives from GDS: { background, primary, secondary, accent } mapped from theme.palette/background/text/accent.',
-    'For each slide (each Recipe) you can choose one of two modes:',
-    '1) Element Grid Mode (backward compatible): provide elements[] with 12-column grid coordinates.',
-    '   Element spec: { type: Title|BulletedList|Paragraph|Image|Diagram|Table|Quote|Stat|Callout, content, style_hints, grid: { colStart, colEnd, rowStart, rowEnd }, background_element?, accessibility? }. Maintain readability, consistent scale, and respect theme GDS typography and palette. Composition rules: long titles span 8–12 cols near top rows; lists align left with ample whitespace; diagrams/tables get generous area; images as background require readable overlays; avoid edges; maintain safe margins.',
-    '2) Code Mode (preferred for maximum fidelity): provide code: { html, css, js } representing a self-contained slide implementation.',
-    '   - All CSS and JS must be inline via <style> and <script> tags or provided in css/js strings; no external libs.',
-    '   - Use the provided GDS palette/typography within CSS (colors, fonts, scale).',
-    '   - Use modern CSS Grid/Flexbox for layout; ensure the design fills a 16:9 viewport responsively.',
-    'Accessibility: provide aria_label for key elements; images include alt text when possible.',
+    'You are an expert Creative Director and Frontend Engineer who crafts stunning, animated, and interactive presentation slides.',
+    'Return strictly a single JSON object: { theme_runtime, recipes: Recipe[] }. No commentary or markdown.',
+    'theme_runtime maps from the given theme: { background, primary, secondary, accent } and is used as CSS variables.',
+    'For each slide you may choose:',
+    '1) Element Grid Mode (back-compat): elements[] with a 12-column grid for Title, BulletedList, Paragraph, Image, Diagram, Table, Quote, Stat, Callout.',
+    '2) Code Mode (preferred): code: { html, css, js } that fully renders the slide in an isolated 16:9 iframe.',
+    'RULES for Code Mode:',
+    ' - Self-contained: inline CSS/JS only; avoid external libraries unless explicitly requested.',
+    ' - Use provided CSS variables (e.g., --gds-text-primary, --gds-bg-primary, --gds-accent-primary, --gds-font-heading, --gds-font-body).',
+    ' - Modern layout: CSS Grid/Flexbox; fill the canvas; maintain safe margins; responsive within 16:9.',
+    ' - Animate: tasteful CSS or lightweight JS animations for titles, text, and subtle backgrounds.',
+    ' - Creative backgrounds (esp. title/section): animated gradients or particles in pure CSS/vanilla JS.',
+    ' - Accessibility: aria-labels for key elements; alt text for images when possible.',
   ].join('\n');
 
-  const user = JSON.stringify({ blueprint, instructions: {
-    grid: 'Use 12-column grid, include {colStart,colEnd,rowStart,rowEnd} for every element. Respect safe margins and avoid edge collisions.',
-    theme: 'Derive colors from blueprint.theme.palette; ensure high contrast for dark background with white text. Use GDS typography scale for sizing.',
-    accessibility: 'Provide aria_label for titles, quotes, stats; include alt in accessibility for images when possible.',
-    backgrounds: 'For title/section slides, you may add a subtle animated generative background using theme accents.',
-  }});
+  const user = JSON.stringify({
+    blueprint,
+    instructions: {
+      theme: 'Use the provided GDS CSS variables (--gds-*) for all colors and fonts to ensure cohesion.',
+      layout: 'Design dynamic layouts using the full 16:9 space. Avoid simple centered blocks; use asymmetry and layering tastefully.',
+      animation: 'Animate elements on load with subtle motion; stagger bullets; keep it professional.',
+      accessibility: 'Add aria-labels for key elements; alt text for images when available.',
+      output: 'Return only the JSON object described; do not include extra text.'
+    }
+  });
   let out = null;
   try {
     out = await callGoogleGemini({ system, user, json: true });
@@ -659,14 +665,14 @@ export async function* generateSlideRecipesStream(blueprint) {
 
     const background = { color: theme_runtime.background };
 
-    // Construct code-mode rendition (html/css/js)
+    // Construct code-mode rendition (html/css/js) using --gds-* variables
     const htmlParts = [];
     htmlParts.push(`<!DOCTYPE html>`);
     htmlParts.push(`<html lang="en">`);
     htmlParts.push(`<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>`);
     htmlParts.push(`<body>`);
-    htmlParts.push(`<div class="slide">
-  <header class="title">${(s.slide_title || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</header>
+    htmlParts.push(`<div class="slide" role="group" aria-label="presentation slide">
+  <header class="title" aria-label="slide title">${(s.slide_title || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</header>
   ${!isTitle ? `<section class="content">
     <ul>
       ${(Array.isArray(bullets) ? bullets : []).slice(0,8).map(b => `<li>${String(b||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</li>`).join('\n      ')}
@@ -678,15 +684,26 @@ export async function* generateSlideRecipesStream(blueprint) {
     const css = `:root{color-scheme:light dark}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--color-background,#000);color:var(--color-primary,#fff);font-family:var(--font-body,ui-sans-serif,system-ui);}
-.slide{position:relative;width:100%;height:100%;padding:6vh 6vw;display:flex;flex-direction:column;gap:2vh}
-.title{font-family:var(--font-heading,ui-sans-serif,system-ui);font-size:clamp(28px,6vw,72px);line-height:1.1;letter-spacing:-0.02em;text-wrap:balance;text-align:${isTitle ? 'center' : 'left'};color:var(--color-primary)}
+body{background:var(--gds-bg-primary,#000);color:var(--gds-text-primary,#fff);font-family:var(--gds-font-body,ui-sans-serif,system-ui);} 
+.slide{position:relative;width:100%;height:100%;padding:6vh 6vw;display:flex;flex-direction:column;gap:2vh;overflow:hidden}
+.slide::before{content:"";position:absolute;inset:-20%;background:radial-gradient(60% 60% at 10% 10%, color-mix(in srgb, var(--gds-accent-primary), transparent 70%), transparent),
+ linear-gradient(120deg, color-mix(in srgb, var(--gds-accent-primary), transparent 70%), transparent);
+ filter: blur(40px);opacity:0.25;animation: bgfloat 12s ease-in-out infinite alternate;pointer-events:none}
+.title{font-family:var(--gds-font-heading,ui-sans-serif,system-ui);font-size:clamp(28px,6vw,72px);line-height:1.1;letter-spacing:-0.02em;text-wrap:balance;text-align:${isTitle ? 'center' : 'left'};color:var(--gds-text-primary);animation: fadeInUp 600ms ease both}
 .content{flex:1;display:flex;align-items:flex-start}
-.content ul{margin:2vh 0 0 1.25rem;padding:0;list-style:disc;color:var(--color-secondary)}
-.content li{margin:0.4em 0;font-size:clamp(14px,2.2vw,22px)}
+.content ul{margin:2vh 0 0 1.25rem;padding:0;list-style:disc;color:var(--gds-text-secondary)}
+.content li{margin:0.4em 0;font-size:clamp(14px,2.2vw,22px);opacity:0;animation: fadeIn 700ms ease forwards;}
+.content li:nth-child(1){animation-delay:100ms}
+.content li:nth-child(2){animation-delay:200ms}
+.content li:nth-child(3){animation-delay:300ms}
+.content li:nth-child(4){animation-delay:400ms}
+.content li:nth-child(5){animation-delay:500ms}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bgfloat{from{transform:translate3d(0,0,0)}to{transform:translate3d(4%,3%,0)}}
 `;
 
-    const js = `// Reserved for interactive slides. Access theme via CSS variables.`;
+    const js = `// Reserved for interactive slides. Access theme via CSS variables (e.g., var(--gds-accent-primary)).`;
 
     const recipe = {
       slide_id: s.slide_id,

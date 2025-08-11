@@ -4,6 +4,7 @@
 import { useAppStore } from '@/utils/zustand-store';
 import { SlideRenderer } from '@/components/slide-renderer';
 import { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import ThemeProvider from '@/components/ThemeProvider';
 
 // Advanced animation that synthesizes pseudo-code from the actual blueprint
@@ -167,7 +168,62 @@ export default function DeckView() {
   
   const [exportError, setExportError] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
-  const [subView, setSubView] = useState('preview'); // 'preview' | 'code'
+  const [subView, setSubView] = useState('preview'); // 'preview' | 'code' | 'split'
+  const [slideError, setSlideError] = useState(null);
+
+  // Restore persisted UI prefs
+  useEffect(() => {
+    try {
+      const sv = localStorage.getItem('deck.subView');
+      const sg = localStorage.getItem('deck.showGrid');
+      if (sv === 'preview' || sv === 'code' || sv === 'split') setSubView(sv);
+      else setSubView('code'); // default-to-code
+      if (sg != null) setShowGrid(sg === 'true');
+    } catch (_) {}
+  }, []);
+
+  // Persist changes
+  useEffect(() => {
+    try { localStorage.setItem('deck.subView', subView); } catch (_) {}
+  }, [subView]);
+  useEffect(() => {
+    try { localStorage.setItem('deck.showGrid', String(showGrid)); } catch (_) {}
+  }, [showGrid]);
+  
+  // Keyboard navigation and view toggles
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!recipes || !recipes.length) return;
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        e.preventDefault();
+        setActiveSlideIndex(Math.min(activeIndex + 1, recipes.length - 1));
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        setActiveSlideIndex(Math.max(activeIndex - 1, 0));
+      } else if (e.key.toLowerCase() === 'c') {
+        // Toggle code/preview quickly
+        e.preventDefault();
+        setSubView((v) => v === 'code' ? 'preview' : 'code');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeIndex, recipes, setActiveSlideIndex]);
+
+  // Listen for iframe error messages
+  useEffect(() => {
+    const onMsg = (e) => {
+      const d = e?.data;
+      if (d && d.type === 'slide_error') {
+        setSlideError(d.message || 'Slide error');
+        // Auto-clear after a while
+        window.clearTimeout(onMsg.__t);
+        onMsg.__t = window.setTimeout(() => setSlideError(null), 6000);
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
 
   const enterFullscreen = () => {
     const el = document.documentElement;
@@ -210,10 +266,46 @@ export default function DeckView() {
         </div>
       );
     }
+    if (subView === 'split') {
+      return (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          <div className="aspect-video bg-black/30 border border-white/10 rounded block">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={current?.slide_id || activeIndex}
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className="w-full h-full"
+              >
+                <ThemeProvider className="w-full h-full">
+                  <SlideRenderer recipe={{ ...current, theme_runtime: themeRuntime }} showGrid={showGrid} />
+                </ThemeProvider>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+          <div className="aspect-video bg-black/30 border border-white/10 rounded block p-3">
+            <CodePanel slide={current} blueprint={blueprint} />
+          </div>
+        </div>
+      );
+    }
     return (
-      <ThemeProvider className="aspect-video bg-black/30 border border-white/10 rounded block">
-        <SlideRenderer recipe={{ ...current, theme_runtime: themeRuntime }} showGrid={showGrid} />
-      </ThemeProvider>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={current?.slide_id || activeIndex}
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -24 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="aspect-video"
+        >
+          <ThemeProvider className="w-full h-full bg-black/30 border border-white/10 rounded block">
+            <SlideRenderer recipe={{ ...current, theme_runtime: themeRuntime }} showGrid={showGrid} />
+          </ThemeProvider>
+        </motion.div>
+      </AnimatePresence>
     );
   };
 
@@ -251,6 +343,13 @@ export default function DeckView() {
               >
                 Code
               </button>
+              <button
+                className={`px-3 py-1 text-sm rounded-full ${subView === 'split' ? 'bg-white text-black' : 'text-white/70 hover:bg-white/10'}`}
+                onClick={() => setSubView('split')}
+                disabled={isLoading || !recipes || recipes.length === 0}
+              >
+                Split
+              </button>
             </div>
             <button 
               className="secondary-button"
@@ -269,10 +368,15 @@ export default function DeckView() {
             <button className="primary-button" onClick={enterFullscreen} disabled={isLoading}>Present</button>
           </div>
         </div>
-        {/* Phase 4.2: Export error display */}
+        {/* Error displays */}
         {exportError && (
           <div className="mb-3 p-3 bg-red-500/10 border border-red-500/20 rounded text-red-300 text-sm">
             Export failed: {exportError}
+          </div>
+        )}
+        {slideError && (
+          <div className="mb-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded text-amber-300 text-sm">
+            Slide error: {slideError}
           </div>
         )}
         {renderDeckContent()}

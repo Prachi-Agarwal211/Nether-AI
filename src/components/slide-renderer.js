@@ -1,7 +1,7 @@
 // src/components/slide-renderer.js
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import Image from 'next/image';
 
 function Title({ content, style_hints = {} }) {
@@ -206,41 +206,49 @@ export function SlideRenderer({ recipe, showGrid = false }) {
 
   // Code Mode: render AI-provided HTML/CSS/JS in sandboxed iframe
   const code = recipe?.code;
-  const iframeRef = useRef(null);
-  useEffect(() => {
-    if (!code || !iframeRef.current) return;
-    const doc = iframeRef.current.contentDocument;
-    if (!doc) return;
-
-    const rt = recipe?.theme_runtime || {};
-    const bg = recipe?.background?.color || rt.background || '#000000';
-    const cssVars = `:root{--gds-text-primary:${rt.primary||'#ffffff'};--gds-text-secondary:${rt.secondary||'#cccccc'};--gds-bg-primary:${rt.background||'#0b0b0f'};--gds-bg-secondary:${rt.background||'#11131a'};--gds-accent-primary:${rt.accent||'#ffe1c6'};--gds-accent-secondary:${rt.accent||'#ffd199'};}`;
-
-    const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+  const rt = recipe?.theme_runtime || {};
+  const bgColor = recipe?.background?.color || rt.background || '#000000';
+  const cssVars = `:root{--gds-text-primary:${rt.primary||'#ffffff'};--gds-text-secondary:${rt.secondary||'#cccccc'};--gds-bg-primary:${rt.background||'#0b0b0f'};--gds-bg-secondary:${rt.background||'#11131a'};--gds-accent-primary:${rt.accent||'#ffe1c6'};--gds-accent-secondary:${rt.accent||'#ffd199'};}`;
+  const fullHtml = code && (code.html || code.css || code.js)
+    ? `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
       <meta name="viewport" content="width=device-width,initial-scale=1"/>
       <style>
-        html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:${bg};}
+        html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:${bgColor};}
         ${cssVars}
         ${code.css || ''}
       </style>
     </head><body>
       ${code.html || ''}
-      <script>(()=>{try{${code.js || ''}}catch(e){console.error('slide js error',e)}})();</script>
-    </body></html>`;
-
-    doc.open();
-    doc.write(fullHtml);
-    doc.close();
-  }, [code, recipe]);
+      <script>
+        // Bridge errors to parent for debugging in DeckView
+        (function(){
+          try {
+            const post = (payload) => {
+              try { if (window.parent) window.parent.postMessage({ type: 'slide_error', ...payload }, '*'); } catch (_) {}
+            };
+            window.addEventListener('error', function(e){
+              post({ message: e?.message || 'Unknown error', stack: (e?.error && e.error.stack) || null });
+            });
+            const __origErr = console.error;
+            console.error = function(){
+              try { post({ message: Array.from(arguments).map(a => String(a)).join(' ') }); } catch(_){}
+              return __origErr.apply(this, arguments);
+            };
+          } catch(_){}
+        })();
+      </script>
+      <script type="module">try{${code.js || ''}}catch(e){console.error('slide js error',e)}</script>
+    </body></html>`
+    : null;
 
   if (code && (code.html || code.css || code.js)) {
     return (
       <div className="w-full h-full">
         <iframe
-          ref={iframeRef}
           title="AI Generated Slide"
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
           className="w-full h-full border-0 rounded"
+          srcDoc={fullHtml || ''}
         />
       </div>
     );
