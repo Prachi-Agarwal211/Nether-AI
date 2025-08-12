@@ -112,15 +112,38 @@ export const useAppStore = create(
         savePresentation: async () => {
           const { presentation, activeView } = get();
           const supabase = createClient();
-          
+
+          // Ensure Supabase is configured
+          if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+            console.warn('Autosave skipped: Supabase env vars are missing');
+            return presentation.id;
+          }
+
+          // Require auth for RLS-protected tables
+          let userId = null;
+          try {
+            const { data: userData, error: userErr } = await supabase.auth.getUser();
+            if (userErr) {
+              console.warn('Autosave: getUser error:', userErr?.message || userErr);
+            }
+            userId = userData?.user?.id || null;
+          } catch (e) {
+            console.warn('Autosave: getUser threw:', e?.message || e);
+          }
+          if (!userId) {
+            console.warn('Autosave skipped: no signed-in user');
+            return presentation.id;
+          }
+
           const status = {
             deck: 'deck',
             outline: 'outline',
             idea: 'idea'
           }[activeView] || 'draft';
-          
+
           const payload = {
             id: presentation.id || undefined,
+            user_id: userId,
             topic: presentation.topic,
             chosen_angle: presentation.chosenAngle,
             slide_count: presentation.slideCount,
@@ -129,16 +152,16 @@ export const useAppStore = create(
             updated_at: new Date().toISOString(),
             status,
           };
-          
+
           try {
             const { data, error } = await supabase
               .from('presentations')
               .upsert(payload)
               .select('id')
               .single();
-              
+
             if (error) throw error;
-            
+
             // Update local ID if this is a new presentation
             if (data?.id && !presentation.id) {
               set(state => ({
@@ -148,10 +171,20 @@ export const useAppStore = create(
                 },
               }));
             }
-            
+
             return data?.id || presentation.id;
           } catch (error) {
-            console.error('Autosave failed:', error);
+            // Improve diagnostics since Supabase errors often stringify to {}
+            const msg = error?.message || String(error);
+            const details = error?.details || error?.hint || null;
+            const code = error?.code || null;
+            console.error('Autosave failed:', { msg, code, details, payloadSummary: {
+              hasId: !!payload.id,
+              hasUserId: !!payload.user_id,
+              topicLen: (payload.topic || '').length,
+              slides: Array.isArray(payload.recipes) ? payload.recipes.length : 0,
+              status: payload.status,
+            }});
             // Non-blocking - user can continue working
             return presentation.id;
           }

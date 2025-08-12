@@ -229,6 +229,7 @@ export function SlideRenderer({ recipe, showGrid = false }) {
         <!-- Material Icons -->
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
         <style>
+          ${cssVars}
           html, body { margin:0; padding:0; overflow:hidden; font-size: 1.4vw }
           body { background-color: #0A0E2B; }
           .slide { width:1280px; min-height:720px; padding:40px 60px; box-sizing:border-box; overflow:hidden; position:relative; background-color:#0A0E2B; display:flex; flex-direction:column; }

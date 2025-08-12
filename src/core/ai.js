@@ -636,7 +636,7 @@ export async function generateSingleSlideRecipe({ blueprint, slide, theme_runtim
     '- Google Material Icons font is available.',
     '- Mermaid and Chart.js are also preloaded, but prefer ECharts for charts if needed.',
     'STRUCTURE:',
-    '- Do NOT include <html>, <head>, or <body> elements; html must be the inner markup that will be inserted inside a <div class="slide"> container.',
+    '- Do NOT include <html>, <head>, or <body> elements; html must be the inner markup that will be inserted inside a <div class="slide"> container. (Full documents are accepted too, but inner markup is preferred.)',
     '- Use Tailwind utility classes extensively for layout (flex/grid), spacing, and typography.',
     '- Keep within a 1280x720 logical slide; respect safe padding (already provided by the container).',
     'STYLE:',
@@ -647,6 +647,11 @@ export async function generateSingleSlideRecipe({ blueprint, slide, theme_runtim
     '- Avoid external network fetches; use inline data for charts.',
     'ACCESSIBILITY:',
     '- Provide aria-labels for key sections; images should have alt text.',
+    'DEFINITION OF DONE (non-negotiable):',
+    '- Output is valid JSON only. No prose, code fences, or markdown.',
+    '- The object has key "code" with string fields "html", "css", and "js".',
+    '- "html" MUST NOT be empty. It must include a visible title/header and a content section (cards/list/columns/chart).',
+    '- No external network fetches; use inline placeholders/data. Use Tailwind/ECharts/Material Icons already loaded.',
   ].join('\n');
 
   const user = JSON.stringify({
@@ -667,16 +672,45 @@ export async function generateSingleSlideRecipe({ blueprint, slide, theme_runtim
     }
   });
 
+  // Simple validator for AI output
+  const validate = (obj) => {
+    if (!obj || typeof obj !== 'object') return { ok: false, reason: 'No object' };
+    if (!obj.code || typeof obj.code !== 'object') return { ok: false, reason: 'Missing code object' };
+    const { html, css, js } = obj.code;
+    if (typeof html !== 'string') return { ok: false, reason: 'code.html not a string' };
+    if ((html || '').trim().length < 40) return { ok: false, reason: 'html too short/empty' };
+    // If full doc, ensure body or head tags; else ensure some structure like a heading
+    const isFull = /<\s*html|<\s*body|<\s*head/i.test(html);
+    if (isFull) {
+      if (!/<\s*body/i.test(html)) return { ok: false, reason: 'full doc without <body>' };
+    } else {
+      if (!/(<h1|<h2|class=\"[^\"]*title|class='[^']*title)/i.test(html)) return { ok: false, reason: 'no visible heading in inner html' };
+    }
+    // css/js may be empty strings, that is acceptable
+    if (css !== undefined && typeof css !== 'string') return { ok: false, reason: 'code.css not a string' };
+    if (js !== undefined && typeof js !== 'string') return { ok: false, reason: 'code.js not a string' };
+    return { ok: true };
+  };
+
+  // First attempt
   let out = null;
   try {
     out = await callGoogleGemini({ system, user, json: true });
   } catch (_) {}
+  let v = validate(out);
+  if (v.ok) return out.code;
 
-  if (!out || !out.code || typeof out.code !== 'object') {
-    throw new Error('Invalid response from AI');
+  // One corrective retry
+  const correction = `Previous attempt failed validation: ${v.reason}. Fix it and return ONLY JSON { code: { html, css, js } } meeting the Definition of Done. Keep the same slide intent: ${slide?.slide_title || ''}.`;
+  const userRetry = JSON.stringify({ retry_note: correction, original: JSON.parse(user) });
+  try {
+    const out2 = await callGoogleGemini({ system, user: userRetry, json: true });
+    const v2 = validate(out2);
+    if (v2.ok) return out2.code;
+    throw new Error(`Invalid response after retry: ${v2.reason}`);
+  } catch (e) {
+    throw new Error(v?.reason ? `Invalid response from AI: ${v.reason}` : (e?.message || 'Invalid response from AI'));
   }
-
-  return out.code;
 }
 
 // Simple fallback recipe factory used when AI fails for a slide
@@ -739,6 +773,8 @@ export async function* generateSlideRecipesStream(blueprint) {
       yield { type: 'progress', message: `Starting slide ${i + 1} of ${total}: ${s?.slide_title || ''}` };
       const job = (async () => {
         try {
+          // Small jitter (0-250ms) to reduce burst rate-limit collisions
+          await new Promise(res => setTimeout(res, Math.floor(Math.random() * 250)));
           const code = await generateSingleSlideRecipe({ blueprint, slide: s, theme_runtime });
           const recipe = {
             slide_id: s.slide_id,
