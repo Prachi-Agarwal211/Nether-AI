@@ -1,0 +1,446 @@
+Nether AI – Project Documentation (Comprehensive)
+
+Last updated: 2025-08-12
+
+1) Introduction
+- Project Overview: Nether AI is a Next.js-based app that helps users generate professional presentation content and design blueprints using AI, store artifacts securely, and export to PPTX. It integrates Supabase for authentication, database, and storage; and uses Google Gemini models for AI generation.
+- Audience: Developers onboarding to the project, contributors, and maintainers.
+- Key Features:
+  • Email/Password + OAuth authentication via Supabase
+  • AI-powered generation of strategic angles and slide blueprints
+  • Slide rendering in a 12-column grid with rich content blocks and code-based rendering in a sandboxed iframe
+  • Autosave and history persistence to Supabase
+  • Server-side PPTX export via API
+
+2) Tech Stack
+- Framework: Next.js 15 (App Router) – `next: 15.4.5`
+- Language: React 19 – `react: 19.1.0`, `react-dom: 19.1.0`
+- Styling: Tailwind CSS 3 – `tailwindcss: ^3.4.17`
+- State Mgmt: Zustand – `zustand: ^4.5.2`
+- Backend-as-a-Service: Supabase – `@supabase/supabase-js: ^2.43.4`, `@supabase/ssr: ^0.6.1`
+- AI: Google Gemini (via direct REST fetch). Some AI SDK packages are present but not actively used in current code.
+- PPTX: `pptxgenjs: ^4.0.1` (server-side export route)
+- Animations/UI: `framer-motion`, `react-icons`, `react-hot-toast`, `lucide-react`
+- 3D/Visual (optional components): `three`, `@react-three/fiber`, `@react-three/drei`
+
+3) Repository Structure (annotated)
+Project root: `d:/Nether AI/nether-ai/`
+- `.env.local` – Local environment variables (DO NOT COMMIT)
+- `.gitignore` – Standard ignore list
+- `.next/` – Next.js build output (generated)
+- `LICENSE` – Project license
+- `README.md` – Quick readme
+- `SUPABASE_SCHEMA_AND_SQL.txt` – Full SQL/steps for DB schema, RLS policies, storage policies, and verification queries
+- `eslint.config.mjs` – ESLint flat config (extends `next/core-web-vitals`)
+- `jsconfig.json` – JS path configuration
+- `next.config.mjs` – Next.js config (adds security headers for `/api/*`)
+- `node_modules/` – Dependencies
+- `package.json` – Dependencies and scripts
+- `package-lock.json` – Lockfile
+- `postcss.config.js` – PostCSS config
+- `public/` – Static assets
+- `tailwind.config.js` – Tailwind configuration
+- `src/` – Application code
+  • `app/` – App Router pages and API routes
+    - `api/`
+      · `ai/route.js` – AI orchestration endpoint (Gemini-powered)
+      · `export-pptx/route.js` – Server-side PPTX export
+    - `dashboard/`
+      · `page.js` – Dashboard index
+      · `idea-view.js` – Idea selection/generation view
+      · `outline-view.js` – Outline/blueprint view
+      · `deck-view.js` – Deck rendering view
+    - `share/[shareId]/`
+      · `page.js`, `SharePresentationClient.js` – Shared presentation view (client)
+    - `favicon.ico`, `globals.css`, `layout.js`, `page.js` – Root styles, layout, and auth landing
+  • `components/`
+    - `BlueprintDisplay.js` – UI for blueprint/outline visualization
+    - `ThemeProvider.js` – Theming provider
+    - `VantaBackground.js` – Animated visual background (client-only)
+    - `header.js` – Header component
+    - `slide-renderer.js` – Core slide renderer for recipes (grid or code-iframe modes)
+  • `core/`
+    - `ai.js` – Core AI logic: calling Gemini, generating angles/blueprints, refining, and streaming
+  • `utils/`
+    - `supabase-client.js` – Browser Supabase client (`@supabase/ssr`)
+    - `downloader.js` – Client-side PPTX export (disabled in prod; reference only)
+    - `zustand-store.js` – App state store, actions, autosave, and Supabase persistence
+
+4) Why each file/folder exists
+- `src/app/page.js` – Auth landing. Implements sign in/up/reset and Google OAuth using Supabase. Redirects authenticated users to `/dashboard`.
+- `src/app/layout.js` – Root layout, fonts, global CSS, `react-hot-toast`, and lazy `VantaBackground`.
+- `src/app/api/ai/route.js` – Central API route to invoke AI tasks:
+  • `generate_angles` → `core/ai.generateStrategicAngles()`
+  • `generate_blueprint` → `core/ai.generateBlueprint()`
+  • `refine_blueprint` → `core/ai.refineBlueprintViaChat()`
+  • `generate_recipes` / `generate_recipes_stream` → slide recipe generation or streaming (iterator) if implemented in `core/ai.js`
+- `src/app/api/export-pptx/route.js` – Receives presentation plus slide recipes and returns a PPTX file generated with `pptxgenjs`.
+- `src/components/slide-renderer.js` – Renders slide recipes in a twelve-column CSS grid with multiple element types (Title, BulletedList, Paragraph, Quote, Stat, Callout, Image, Diagram, Table) and a sandboxed iframe mode if a recipe contains AI-provided `code.html/css/js`.
+- `src/core/ai.js` –
+  • `callGoogleGemini()` – Direct REST call to Gemini (`v1beta/models/${model}:generateContent`). Uses `GOOGLE_GEMINI_API_KEY` (server) or `NEXT_PUBLIC_GOOGLE_GEMINI_API_KEY` as fallback.
+  • `generateStrategicAngles(topic)` – Generates 2–3 presentation angles with validation and robust fallbacks by topic domain.
+  • `generateBlueprint(topic, angle, slideCount)` – Produces a full presentation blueprint with theme GDS and slide blocks; contains deterministic fallback.
+  • `refineBlueprintViaChat(blueprint, chatHistory)` – Refines blueprint with constraints and safety checks.
+  • `generateBlueprintStreaming(...)` – Streaming scaffolding (continues in file) for progressive UX.
+- `src/utils/zustand-store.js` –
+  • Holds `AppState` (active view, presentation model, chat/history)
+  • Supabase persistence: `loadHistory()`, `savePresentation()`
+  • AI actions: `generateAngles()`, `chooseAngleAndBuildBlueprint()`
+  • Media upload to Supabase Storage: `uploadAttachment()` into `presentation-assets`
+  • Debounced autosave `_scheduleAutosave()`
+- `src/utils/supabase-client.js` – Creates browser client using `createBrowserClient(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)`.
+- `SUPABASE_SCHEMA_AND_SQL.txt` – End-to-end SQL for tables: `presentations`, `assets`, `profiles`; helper triggers, RLS policies; storage bucket configuration steps; Google sign-in steps; verification and optional reset SQL.
+- `next.config.mjs` – Adds security headers for `/api/*`: `X-Content-Type-Options`, `X-Frame-Options`, `Cache-Control: no-store`.
+- `tailwind.config.js` – Tailwind paths, fonts (Geist), custom colors and animations.
+- `eslint.config.mjs` – ESLint setup for Next.js best practices.
+
+5) Environment Variables
+Create `./.env.local` (not committed). Required:
+- NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+- NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+- GOOGLE_GEMINI_API_KEY=your_google_gemini_api_key
+Optional (legacy/alt):
+- NEXT_PUBLIC_GOOGLE_GEMINI_API_KEY=your_google_gemini_api_key
+- OPENROUTER_API_KEY, OPENROUTER_MODEL (mentioned in SQL doc, not used by current code)
+
+Notes:
+- The code uses the public anon key in the browser via `@supabase/ssr`. Do NOT expose the service role key to the client. If a server-side admin operation is needed, handle it inside a server route using `SUPABASE_SERVICE_ROLE_KEY` (not present/used in current codebase).
+
+6) Getting Started (Local Development)
+Prerequisites:
+- Node.js 20+ recommended
+- npm (bundled) or yarn/pnpm
+- Git
+
+Installation:
+- Clone repository
+- Install dependencies: `npm install`
+- Create `.env.local` and set variables listed above
+- Start dev server: `npm run dev` (Turbopack). App runs at http://localhost:3000
+
+Scripts (`package.json`):
+- `dev` – `next dev --turbopack`
+- `build` – `next build`
+- `start` – `next start`
+- `lint` – `next lint`
+
+7) Supabase Setup (Phase-by-Phase)
+Phase 1 – Project and Auth:
+- Create a Supabase project (Dashboard). Get `Project URL` and `anon key` for `.env.local`.
+- Authentication:
+  • Enable Email/Password (default)
+  • Optional: Enable Google provider. Configure OAuth in Google Cloud Console and paste secrets into Supabase. Add dev Site URL (http://localhost:3000) in Supabase Auth settings.
+
+Phase 2 – Database Schema and Policies:
+- Open Supabase SQL Editor and run all statements in `SUPABASE_SCHEMA_AND_SQL.txt` under “Creation SQL”. This will:
+  • Create tables: `presentations`, `assets`, `profiles`
+  • Create helper triggers: `set_updated_at`, `set_user_id`, `set_profile_ids`
+  • Enable RLS and add policies for per-user access
+  • Add helpful indexes
+- Run the “Verification SQL” queries in the same file to confirm objects/policies exist.
+
+Phase 3 – Storage (presentation-assets):
+- Create storage bucket `presentation-assets` (public ON) via Dashboard: Storage > Buckets > New bucket.
+- Using the UI, add policies for public read, authenticated insert, and optional owner update/delete as described in `SUPABASE_SCHEMA_AND_SQL.txt`.
+
+Phase 4 – Environment and App bootstrap:
+- Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local` and in your hosting provider (Vercel) project env.
+- Set `GOOGLE_GEMINI_API_KEY` in environment for server-side AI requests.
+
+8) Frontend Architecture and Flow
+Architecture:
+- App Router with pages in `src/app/`
+- Client-first auth page at `src/app/page.js`, with animations via `framer-motion`
+- Visuals via `VantaBackground` and Tailwind design system
+- Components in `src/components/`, including `slide-renderer.js` for rendering recipes (grid mode and code iframe mode)
+
+State Management (Zustand) – `src/utils/zustand-store.js`:
+- Global state: `activeView` ('idea' | 'outline' | 'deck'), `presentation` model (topic, angles, chosenAngle, slideCount, blueprint, slideRecipes, themeRuntime, activeSlideIndex), history, chatHistory
+- Key actions:
+  • `generateAngles(topic)` → calls `/api/ai` with action `generate_angles`
+  • `chooseAngleAndBuildBlueprint(angle)` → calls `/api/ai` with action `generate_blueprint`
+  • `savePresentation()` and `_scheduleAutosave()` → persist to Supabase `presentations`
+  • `loadHistory()` → loads user’s presentations list
+  • `uploadAttachment(file, slideId)` → uploads to Supabase Storage and updates blueprint attachments
+
+Views (high-level):
+- Idea View (`src/app/dashboard/idea-view.js`): Topic input, request angles from AI, select one.
+- Outline View (`src/app/dashboard/outline-view.js`): Displays/edit blueprint; may call `refine_blueprint`.
+- Deck View (`src/app/dashboard/deck-view.js`): Renders slides using `slide-renderer.js`, preview grid, and optionally triggers export.
+
+Rendering – `slide-renderer.js`:
+- Two modes:
+  • Element Grid: interpret `recipe.elements` mapped to a 12-column CSS grid (Title, BulletedList, Paragraph, Quote, Stat, Table, Image, Callout, Diagram)
+  • Code Iframe: if `recipe.code.{html,css,js}` exists, builds a sandboxed iframe `srcDoc` with CSS vars derived from theme runtime; bridges console errors to parent for debugging
+- Backgrounds:
+  • Solid color or generated backgrounds (e.g., gradient or noise canvas) with cleanup
+
+9) Backend/API Flow
+AI Route – `src/app/api/ai/route.js`:
+- Input: `{ action, payload }` via POST
+- Requires env: `GOOGLE_GEMINI_API_KEY` (server) or `NEXT_PUBLIC_GOOGLE_GEMINI_API_KEY` fallback
+- Actions:
+  • `generate_angles` → returns `{ angles: [...] }`
+  • `generate_blueprint` → returns the blueprint JSON with theme and slides
+  • `refine_blueprint` → returns updated blueprint
+  • `generate_recipes` / `generate_recipes_stream` → slide recipes or streaming payloads (if implemented)
+- Streaming helper composes SSE-style `text/event-stream`
+
+PPTX Export – `src/app/api/export-pptx/route.js`:
+- Input: `{ presentation, recipes, slides?, theme_runtime?, theme_gds? }`
+- Builds PPTX with `pptxgenjs`:
+  • Adds slides; maps grid positions to coordinates; renders Title, BulletedList, Paragraph, Quote, Stat, Table, Image placeholder, Callout
+  • Sets presentation meta and slide numbers
+- Output: `application/vnd.openxmlformats-officedocument.presentationml.presentation` buffer with Content-Disposition
+
+Supabase Interactions:
+- Client: `supabase-client.js` using anon key; `zustand-store.js` performs `from('presentations').upsert(...)`, `select(...)` history, and Storage uploads to `presentation-assets`
+- Service Role: not currently used; do not expose service role key client-side
+
+10) Packages and Rationale
+Production dependencies (highlights):
+- `next` – Core web framework; App Router and serverless routes
+- `react`, `react-dom` – UI rendering
+- `@supabase/supabase-js`, `@supabase/ssr` – Auth, DB, storage, SSR-safe client creation
+- `zustand` – Lightweight global state with middleware (`persist`, `devtools`)
+- `pptxgenjs` – PowerPoint file generation on the server export route
+- `framer-motion` – Animated UI states and transitions
+- `react-hot-toast` – Non-blocking user notifications
+- `lucide-react`, `react-icons` – Iconography
+- `isomorphic-dompurify` – Optional sanitization for any user/AI-provided HTML (recommended when enabling rich input)
+- `mammoth`, `pdf-parse`, `cheerio`, `mermaid` – Parsing and diagramming capabilities (use as project grows)
+- `three`, `@react-three/fiber`, `@react-three/drei` – 3D visuals (optional components)
+- `ai`, `@ai-sdk/openai` – Present but not used in current core flow; consider removal if not needed
+
+Dev dependencies:
+- `eslint`, `eslint-config-next` – Linting and Next.js rules
+- `tailwindcss`, `@tailwindcss/postcss`, `postcss`, `autoprefixer` – Styling pipeline
+
+11) Security and Config
+- `next.config.mjs`: Adds headers for `/api/*`:
+  • `X-Content-Type-Options: nosniff`
+  • `X-Frame-Options: DENY`
+  • `Cache-Control: no-store`
+- Auth and RLS:
+  • RLS policies restrict `presentations`/`assets`/`profiles` tables to current user
+  • Use Supabase dashboard to set storage bucket policies for `presentation-assets`
+- Secrets:
+  • Do not commit `.env.local`
+  • Use project secrets in Vercel/hosting provider for production
+
+12) Deployment
+Vercel (recommended):
+- Import Git repo into Vercel
+- Set Environment Variables in Vercel project:
+  • NEXT_PUBLIC_SUPABASE_URL
+  • NEXT_PUBLIC_SUPABASE_ANON_KEY
+  • GOOGLE_GEMINI_API_KEY
+- Build command: `next build` (default)
+- Output: Next.js App Router on Vercel edge/node runtimes
+
+13) Testing Strategy (suggested)
+- Unit tests for `core/ai.js` normalization and fallbacks (ensure deterministic outputs)
+- Component tests for `slide-renderer.js` with representative recipes for each element type
+- API tests for `/api/ai` and `/api/export-pptx` (mocking Gemini/`pptxgenjs`)
+- E2E happy path: sign up/in, generate angles → blueprint → (recipes) → export PPTX
+
+14) Troubleshooting
+- 401/Forbidden from Supabase:
+  • Ensure `.env.local` values are correct
+  • Confirm RLS policies exist and user is authenticated
+- AI route errors:
+  • Verify `GOOGLE_GEMINI_API_KEY` is set in the server environment
+  • Check server logs for `[AI_ROUTE_ERROR]`
+- PPTX export fails:
+  • Ensure request body matches route expectations and recipes include supported elements
+  • Investigate server logs for `PPTX Export Error`
+- Storage upload fails:
+  • Verify `presentation-assets` bucket exists and policies allow auth users to insert
+
+15) Roadmap Notes (suggested)
+- Implement `generateSlideRecipes` and streaming end-to-end in `core/ai.js` and UI
+- Add server-side Supabase admin utilities as needed (using service role key only on server)
+- Add usage analytics and rate limiting where appropriate
+- Replace any unused packages to reduce bundle size
+
+Appendix A – Directory Tree (condensed)
+/
+|-- .env.local
+|-- .gitignore
+|-- .next/
+|-- LICENSE
+|-- README.md
+|-- SUPABASE_SCHEMA_AND_SQL.txt
+|-- eslint.config.mjs
+|-- jsconfig.json
+|-- next.config.mjs
+|-- node_modules/
+|-- package-lock.json
+|-- package.json
+|-- postcss.config.js
+|-- public/
+|-- tailwind.config.js
+|-- src/
+|   |-- app/
+|   |   |-- api/
+|   |   |   |-- ai/route.js
+|   |   |   |-- export-pptx/route.js
+|   |   |-- dashboard/
+|   |   |   |-- deck-view.js
+|   |   |   |-- idea-view.js
+|   |   |   |-- outline-view.js
+|   |   |   |-- page.js
+|   |   |-- share/[shareId]/
+|   |   |   |-- SharePresentationClient.js
+|   |   |   |-- page.js
+|   |   |-- favicon.ico
+|   |   |-- globals.css
+|   |   |-- layout.js
+|   |   |-- page.js
+|   |-- components/
+|   |   |-- BlueprintDisplay.js
+|   |   |-- ThemeProvider.js
+|   |   |-- VantaBackground.js
+|   |   |-- header.js
+|   |   |-- slide-renderer.js
+|   |-- core/
+|   |   |-- ai.js
+|   |-- utils/
+|       |-- downloader.js
+|       |-- supabase-client.js
+|       |-- zustand-store.js
+
+Appendix B – API Contract Summaries
+POST /api/ai
+- Body: { action: 'generate_angles' | 'generate_blueprint' | 'refine_blueprint' | 'generate_recipes' | 'generate_recipes_stream', payload: {...} }
+- Success: 200 with JSON (or SSE stream for streaming)
+- Errors: 4xx/5xx JSON `{ error }`
+
+POST /api/export-pptx
+- Body: { presentation, recipes[, slides], theme_runtime?, theme_gds? }
+- Success: 200 application/vnd.openxmlformats-officedocument.presentationml.presentation
+- Errors: 4xx/5xx JSON `{ error }`
+
+16) High-Level Architecture Diagram
+User/Browser
+  |
+  v
+Next.js Frontend (App Router)
+  - Pages: `src/app/`
+  - Components: `src/components/`
+  - State: `src/utils/zustand-store.js`
+  |
+  v
+Next.js Backend (API Routes)
+  - `POST /api/ai` -> `src/app/api/ai/route.js` -> `src/core/ai.js` (Gemini REST)
+  - `POST /api/export-pptx` -> `src/app/api/export-pptx/route.js` (pptxgenjs)
+  |                                |
+  |                                +---- Generates PPTX (buffer)
+  |
+  +---- Auth/DB/Storage via Supabase (client SDK in browser)
+
+External Services
+- Supabase: Auth (email/OAuth), Database (Postgres), Storage (buckets)
+- Google Gemini API: content generation (angles, blueprints, refinements)
+
+Data Flow (happy path, simplified)
+User -> Frontend action -> `/api/ai` -> Gemini -> `/api/ai` response -> Frontend updates store -> Supabase persistence (presentations) -> Optional `/api/export-pptx` -> file download
+
+17) Data Models and Relationships
+Tables (see `SUPABASE_SCHEMA_AND_SQL.txt` for full DDL and policies):
+
+- presentations
+  • id (uuid, PK) – unique presentation id
+  • user_id (uuid, not null) – owner; auto-set via trigger to `auth.uid()`
+  • topic (text, not null, default '') – user-entered topic
+  • chosen_angle (jsonb) – selected strategic angle metadata
+  • slide_count (int, default 10) – requested number of slides
+  • blueprint (jsonb) – source-of-truth presentation structure (theme, slides, blocks)
+  • recipes (jsonb) – render-ready slide recipes (optional, may be produced later)
+  • status (text, default 'idea') – workflow stage: idea|outline|deck|draft
+  • created_at/updated_at (timestamptz) – timestamps; updated via trigger
+  Indexes: `(user_id, updated_at desc)`
+  RLS: select/insert/update/delete only when `user_id = auth.uid()`
+
+- assets (optional Phase 1 table)
+  • asset_id (uuid, PK) – asset id
+  • user_id (uuid, not null) – owner; auto-set via trigger
+  • presentation_id (uuid, FK -> presentations.id, on delete cascade)
+  • type (text) – 'image' | 'doc' | 'data'
+  • file_name (text), content_type (text), size_bytes (int)
+  • storage_path (text) – path in Storage bucket (e.g., `presentation-id/slide-id/file`)
+  • public_url (text) – public URL for display
+  • created_at (timestamptz)
+  RLS: owner-only policies
+
+- profiles
+  • id (uuid, PK) – mirrors `auth.users.id`
+  • user_id (uuid) – convenience for RLS/indexing
+  • email, first_name, last_name, username (unique), phone, date_of_birth
+  • created_at/updated_at (timestamptz)
+  RLS: row access restricted to self
+
+Storage
+- Bucket: `presentation-assets` (public ON)
+- Policies: public read, authenticated upload, optional owner update/delete (configure via UI)
+
+18) Happy Path – User Journey Narrative
+1. Onboarding
+   - User visits `/` (`src/app/page.js`), signs up/signs in (email/password or Google OAuth via Supabase).
+   - On success, Next.js redirects to `/dashboard`.
+2. Idea Generation
+   - In idea view, user enters a topic and clicks “Generate Angles”.
+   - Store action `generateAngles(topic)` POSTs to `/api/ai` with `action: 'generate_angles'`.
+   - API calls Gemini; frontend displays 2–3 angles.
+3. Blueprint Creation
+   - User selects an angle -> `chooseAngleAndBuildBlueprint(angle)` calls `/api/ai` with `action: 'generate_blueprint'`.
+   - Store sets `activeView = 'outline'` and updates `presentation.blueprint` with the result.
+   - Background `savePresentation()` upserts to Supabase `presentations` table.
+4. Deck Interaction & Refinement
+   - User opens deck view; `slide-renderer.js` renders recipes or blueprint-derived elements.
+   - Edits and attachments trigger `_scheduleAutosave()` -> `savePresentation()` to persist.
+   - `uploadAttachment(file, slideId)` uploads to Storage and updates blueprint attachments.
+5. Export
+   - User clicks Export; frontend POSTs `{ presentation, recipes }` to `/api/export-pptx`.
+   - Server generates PPTX with `pptxgenjs`; browser downloads the file.
+
+19) Error Handling & Logging Strategy
+Client-Side
+- Use `react-hot-toast` for non-blocking UX feedback (success/info/warn).
+- For actionable failures, show a clear error toast/message; `console.error('[CLIENT_ERROR]', err)` for debugging.
+- Avoid blocking the UI unless absolutely necessary; keep edits non-destructive.
+
+API/Server-Side
+- Wrap handlers in try/catch; return standardized JSON errors: `{ error: string }` with appropriate HTTP status.
+- Add searchable log prefixes:
+  • AI route: `console.error('[AI_ROUTE_ERROR]', err)` in `src/app/api/ai/route.js`.
+  • PPTX export: `console.error('PPTX Export Error:', error)` in `src/app/api/export-pptx/route.js`.
+
+Structured Logging (Roadmap)
+- Integrate Sentry/Logtail/Vercel Logging for production error aggregation and alerting.
+- Capture request IDs and user IDs (when available) for correlation.
+
+20) Coding Conventions & Development Practices
+Components
+- Name components in PascalCase. Reusable generic UI components go under `src/components/ui/` (create as needed).
+- Page-specific components may live alongside their page or in feature folders.
+
+State Management
+- All global state changes go through actions in `src/utils/zustand-store.js`.
+- Use selectors in components to select minimal state to avoid unnecessary re-renders.
+
+Linting & Formatting
+- Run `npm run lint` before commits. Configure editor to format on save.
+- Follow ESLint (Next.js core web vitals) and a consistent Prettier setup (recommended).
+
+Accessibility & UX
+- Provide `aria-label` and alt text for rendered elements where applicable (`slide-renderer.js`).
+- Ensure keyboard navigability and color contrast in themes.
+
+21) Additional Enhancements (Optional)
+- Include an `.env.local.example` in repo with placeholder keys.
+- Add architectural decision records (ADRs) for major choices (e.g., Gemini vs. other LLMs).
+- Create CI: lint on PR, type checks if TS is introduced, basic API tests.
+- Auto-generate a README summary from this doc for the repo front page.
+
+End of document.

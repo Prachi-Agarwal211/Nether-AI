@@ -158,13 +158,17 @@ const CodePanel = ({ slide, blueprint }) => {
 };
 
 export default function DeckView() {
-  const recipes = useAppStore((s) => s.presentation.slideRecipes);
-  const activeIndex = useAppStore((s) => s.presentation.activeSlideIndex);
-  const themeRuntime = useAppStore((s) => s.presentation.themeRuntime);
-  const blueprint = useAppStore((s) => s.presentation.blueprint);
-  const isLoading = useAppStore((s) => s.isLoading);
-  const setActiveSlideIndex = useAppStore((s) => s.setActiveSlideIndex);
-  const exportToPPTX = useAppStore((s) => s.exportToPPTX);
+  const { presentation, isLoading, error, exportToPPTX, setActiveSlideIndex } = useAppStore((s) => ({
+    presentation: s.presentation,
+    isLoading: s.isLoading,
+    error: s.error,
+    exportToPPTX: s.exportToPPTX,
+    setActiveSlideIndex: s.setActiveSlideIndex,
+  }));
+  const recipes = presentation.slideRecipes;
+  const activeIndex = presentation.activeSlideIndex;
+  const themeRuntime = presentation.themeRuntime;
+  const blueprint = presentation.blueprint;
   
   const [exportError, setExportError] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
@@ -319,14 +323,12 @@ export default function DeckView() {
           </button>
         ))}
         {isLoading && (
-          <div className="p-2 text-center text-white/50 text-sm">Generating slides...</div>
+          <div className="p-2 text-center text-white/70 text-sm">{typeof isLoading === 'string' ? isLoading : 'Generating slides...'}</div>
         )}
       </div>
       <div className="lg:col-span-3 p-6">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-white/80">
-            {isLoading ? 'AI is generating your presentation...' : `Slide ${activeIndex + 1} of ${recipes.length}`}
-          </div>
+          <div className="text-white/80">{isLoading ? (typeof isLoading === 'string' ? isLoading : 'AI is generating your presentation...') : `Slide ${activeIndex + 1} of ${recipes.length}`}</div>
           <div className="flex gap-2 items-center">
             <div className="flex items-center gap-1 bg-black/30 border border-white/10 rounded-full p-1 mr-2">
               <button

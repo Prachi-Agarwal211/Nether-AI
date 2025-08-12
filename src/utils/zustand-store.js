@@ -475,7 +475,7 @@ export const useAppStore = create(
           
           // Immediately switch to deck and clear prior recipes to avoid flashing old slides
           set({ 
-            isLoading: true, 
+            isLoading: 'Preparing AI generation...', 
             error: null,
             activeView: 'deck',
             presentation: {
@@ -500,10 +500,12 @@ export const useAppStore = create(
               throw new Error('Streaming response not available.');
             }
 
+            const totalSlides = Array.isArray(presentation.blueprint?.slides) ? presentation.blueprint.slides.length : 0;
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let done = false;
             let buffer = '';
+            let generatedCount = 0;
 
             while (!done) {
               const { value, done: readerDone } = await reader.read();
@@ -521,6 +523,7 @@ export const useAppStore = create(
                   try {
                     const data = JSON.parse(jsonString);
                     if (data.type === 'recipe' && data.recipe) {
+                      generatedCount += 1;
                       set(state => ({
                         presentation: {
                           ...state.presentation,
@@ -528,6 +531,7 @@ export const useAppStore = create(
                           activeSlideIndex: state.presentation.slideRecipes.length,
                         },
                       }));
+                      set({ isLoading: `Generating slide ${generatedCount} of ${totalSlides}...` });
                     } else if (data.type === 'theme_runtime') {
                       set(state => ({
                         presentation: {
@@ -535,6 +539,8 @@ export const useAppStore = create(
                           themeRuntime: data.theme_runtime || state.presentation.themeRuntime,
                         },
                       }));
+                    } else if (data.type === 'progress' && data.message) {
+                      set({ isLoading: String(data.message) });
                     }
                   } catch (e) {
                     console.error('Error parsing stream chunk:', e);

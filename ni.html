@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nether AI - Comprehensive Technical Documentation</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --sidebar-bg: #f8f9fa;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --accent-primary: #007bff;
+            --accent-secondary: #6f42c1;
+            --border-color: #dee2e6;
+            --code-bg: #f1f3f5;
+            --link-hover: #0056b3;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.7;
+            margin: 0;
+            padding-left: 280px;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        
+        .sidebar h3 {
+            color: var(--accent-primary);
+            font-size: 1.5rem;
+            margin-top: 0;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+
+        .sidebar nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar nav > ul > li {
+            margin-bottom: 1rem;
+        }
+        
+        .sidebar nav > ul > li > a {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .sidebar nav li a {
+            display: block;
+            text-decoration: none;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .sidebar nav li a:hover {
+            background-color: rgba(0, 123, 255, 0.1);
+            color: var(--link-hover);
+        }
+        
+        .sidebar nav li a.active {
+            background-color: var(--accent-primary);
+            color: #ffffff !important;
+            font-weight: 600;
+        }
+        
+        .sidebar nav .sub-menu {
+            padding-left: 1rem;
+            margin-top: 0.5rem;
+        }
+        
+        .sidebar nav .sub-menu a {
+            font-size: 0.9em;
+            padding: 0.5rem 1rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .sidebar nav .sub-menu a.active {
+             color: var(--accent-primary);
+             font-weight: 600;
+             background-color: rgba(0, 123, 255, 0.05);
+        }
+
+        .main-content {
+            padding: 2rem 4rem;
+            max-width: 1024px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        header {
+            text-align: center;
+            padding-bottom: 2rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        header h1 {
+            color: var(--text-primary);
+            font-size: 3rem;
+            margin: 0;
+            font-weight: 300;
+        }
+
+        header h1 strong {
+            font-weight: 600;
+            color: var(--accent-primary);
+        }
+
+        h2, h3, h4 {
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-top: 3rem;
+        }
+        
+        h2 { font-size: 2.2rem; font-weight: 600; }
+        h3 { font-size: 1.8rem; font-weight: 600; }
+        h4 { font-size: 1.4rem; border-bottom-style: dashed; font-weight: 600; color: #495057; }
+
+        a {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        code {
+            background-color: var(--code-bg);
+            color: #d63384;
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-family: "SF Mono", "Fira Code", "Courier New", monospace;
+            font-size: 0.9em;
+        }
+        
+        pre {
+            background-color: var(--code-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        pre code {
+           color: inherit;
+           background-color: transparent;
+           padding: 0;
+        }
+
+        blockquote {
+            background-color: rgba(0, 123, 255, 0.05);
+            border-left: 4px solid var(--accent-primary);
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 4px 4px 0;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+        
+        .section {
+            padding-top: 2rem;
+        }
+
+        .diagram {
+            background-color: #f8f9fa;
+            color: #212529;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .diagram svg {
+            width: 100%;
+            height: auto;
+        }
+        
+        .file-spotlight {
+            background-color: rgba(111, 66, 193, 0.05);
+            border: 1px solid rgba(111, 66, 193, 0.3);
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-radius: 6px;
+        }
+        .file-spotlight strong {
+            color: var(--accent-secondary);
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <h3>Nether AI Docs</h3>
+        <nav>
+            <ul>
+                <li><a href="#part1">Part 1: The Big Picture</a></li>
+                <ul class="sub-menu">
+                    <li><a href="#s1-1">Directory Guide</a></li>
+                    <li><a href="#s1-2">Technology Stack</a></li>
+                    <li><a href="#s1-3">System Architecture</a></li>
+                </ul>
+
+                <li><a href="#part2">Part 2: The Creative Workflow</a></li>
+                <ul class="sub-menu">
+                    <li><a href="#s2-1">Phase 1: Idea Generation</a></li>
+                    <li><a href="#s2-2">Phase 2: Outline Creation</a></li>
+                    <li><a href="#s2-3">Phase 3: Deck Rendering</a></li>
+                </ul>
+                
+                <li><a href="#part3">Part 3: The Developer's Deep Dive</a></li>
+                 <ul class="sub-menu">
+                    <li><a href="#s3-1">Database Schema Explained</a></li>
+                    <li><a href="#s3-2">Frontend Architecture</a></li>
+                    <li><a href="#s3-3">Backend Architecture</a></li>
+                    <li><a href="#s3-4">Local Setup Guide</a></li>
+                </ul>
+            </ul>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header>
+            <h1>Welcome to the <strong>Nether AI</strong> Documentation</h1>
+        </header>
+
+        <!-- ====================================================================== -->
+        <!-- PART 1: THE BIG PICTURE                                                -->
+        <!-- ====================================================================== -->
+        <section class="section" id="part1">
+            <h2>Part 1: The Big Picture</h2>
+            
+            <div id="s1-1">
+                <h3>Directory Guide: What Each File Does</h3>
+                <p>Understanding the project structure is the first step to contributing. Here’s a map of the key files and directories.</p>
+                <pre><code>/
+|-- src/
+|   |-- app/
+|   |   |-- api/                # Backend API logic (serverless functions)
+|   |   |   |-- ai/route.js     # Orchestrates all calls to the AI service. The single entry point for AI tasks.
+|   |   |   +-- export-pptx/route.js # Handles the server-side generation of PowerPoint files.
+|   |   |-- dashboard/          # The main application UI after a user logs in.
+|   |   |   |-- idea-view.js    # UI for Phase 1: Entering a topic and getting strategic angles.
+|   |   |   |-- outline-view.js # UI for Phase 2: Displaying the blueprint and refining it with AI chat.
+|   |   |   |-- deck-view.js    # UI for Phase 3: Rendering the final slides and providing export options.
+|   |   |   +-- page.js         # The container/controller for the dashboard that switches between the views above.
+|   |   |-- share/[shareId]/    # Publicly accessible page to view a shared presentation.
+|   |   +-- page.js             # The application's landing page for authentication (Sign In/Sign Up).
+|   |-- components/             # Reusable UI building blocks.
+|   |   |-- slide-renderer.js   # CRITICAL: Renders a single slide recipe, supporting both code-based and grid-based layouts.
+|   |   |-- BlueprintDisplay.js # A component specifically for visualizing the structured 'blueprint' from the AI.
+|   |   +-- header.js           # The navigation header within the dashboard.
+|   |-- core/                   # The heart of the application's business logic.
+|   |   +-- ai.js               # CRITICAL: Contains all prompts and logic for interacting with the Google Gemini API.
+|   |-- utils/                  # Utility functions and application state.
+|   |   |-- zustand-store.js    # Defines the global state manager, including all actions and persistence logic.
+|   |   +-- supabase-client.js  # A small helper to create the Supabase browser client.
+|-- .env.local                  # Your local, secret API keys (DO NOT COMMIT).
+|-- package.json                # Project dependencies and scripts.
++-- SUPABASE_SCHEMA_AND_SQL.txt # The complete SQL script to set up the database from scratch.
+                </code></pre>
+            </div>
+
+            <div id="s1-2">
+                <h3>Technology Stack: The "What" and the "Why"</h3>
+                <p>Each technology was chosen for a specific advantage it brings to the project.</p>
+                <ul>
+                    <li>
+                        <strong>Next.js 15 (App Router)</strong><br>
+                        <em>Advantage:</em> Provides a unified framework for both frontend and backend. API Routes (`/app/api`) eliminate the need for a separate Node.js server, drastically simplifying development and deployment. Server Components allow for efficient data fetching directly where it's needed.
+                    </li>
+                    <li>
+                        <strong>Supabase</strong><br>
+                        <em>Advantage:</em> It's more than just a database; it's a full backend suite. The key advantage is its powerful <strong>Row Level Security (RLS)</strong> built on PostgreSQL. This lets us define data access rules directly in the database, ensuring users can *only* ever see their own data. This is more secure and scalable than filtering data in application code.
+                    </li>
+                    <li>
+                        <strong>Zustand</strong><br>
+                        <em>Advantage:</em> Simplicity and performance. It avoids the heavy boilerplate of other state management libraries like Redux. Its `persist` middleware is a one-line solution for saving the user's session to local storage, providing a seamless experience if they refresh the page.
+                    </li>
+                    <li>
+                        <strong>Google Gemini API (via Direct REST)</strong><br>
+                        <em>Advantage:</em> Full control. By using direct HTTP requests, we have complete transparency into the request/response cycle. This avoids any potential bugs or limitations of an intermediate SDK and makes the application's core AI logic dependency-free and easy to maintain.
+                    </li>
+                    <li>
+                        <strong>Tailwind CSS</strong><br>
+                        <em>Advantage:</em> Speed and consistency. It allows us to build custom, complex user interfaces rapidly without writing custom CSS files. All styling is co-located with the components, making them easy to understand and modify.
+                    </li>
+                </ul>
+            </div>
+
+            <div id="s1-3">
+                <h3>System Architecture</h3>
+                <p>The system is designed with a clear separation between the user's browser, our application server, and external services.</p>
+                <div class="diagram">
+                    <h4>Architectural Flow Diagram</h4>
+                    <svg viewBox="0 0 900 450" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6c757d" /></marker>
+                        </defs>
+                        <!-- Components -->
+                        <g>
+                            <rect x="50" y="175" width="200" height="100" rx="10" fill="#e9ecef" stroke="#ced4da" stroke-width="1"/>
+                            <text x="150" y="220" text-anchor="middle" font-family="Arial" font-size="18" fill="#212529">User Browser</text>
+                            <text x="150" y="240" text-anchor="middle" font-family="Arial" font-size="12" fill="#495057">(React Frontend)</text>
+                        </g>
+                        <g>
+                            <rect x="350" y="50" width="200" height="350" rx="10" fill="#e9ecef" stroke="#ced4da" stroke-width="1"/>
+                            <text x="450" y="80" text-anchor="middle" font-family="Arial" font-size="18" fill="#212529">Next.js Server</text>
+                            <text x="450" y="100" text-anchor="middle" font-family="Arial" font-size="12" fill="#495057">(Hosted on Vercel)</text>
+                            <rect x="370" y="120" width="160" height="70" rx="5" fill="#fff" stroke="#dee2e6"/>
+                            <text x="450" y="150" text-anchor="middle" font-family="Arial" font-size="14">API Routes</text>
+                            <text x="450" y="170" text-anchor="middle" font-family="Arial" font-size="12">/api/*</text>
+                            <rect x="370" y="210" width="160" height="70" rx="5" fill="#fff" stroke="#dee2e6"/>
+                            <text x="450" y="240" text-anchor="middle" font-family="Arial" font-size="14">Core Logic</text>
+                            <text x="450" y="260" text-anchor="middle" font-family="Arial" font-size="12">/core/ai.js</text>
+                        </g>
+                        <g>
+                            <rect x="650" y="50" width="200" height="150" rx="10" fill="#e9ecef" stroke="#ced4da" stroke-width="1"/>
+                            <text x="750" y="115" text-anchor="middle" font-family="Arial" font-size="18" fill="#212529">Supabase</text>
+                            <text x="750" y="140" text-anchor="middle" font-family="Arial" font-size="12" fill="#495057">Authentication</text>
+                             <text x="750" y="155" text-anchor="middle" font-family="Arial" font-size="12" fill="#495057">Database (Postgres)</text>
+                            <text x="750" y="170" text-anchor="middle" font-family="Arial" font-size="12" fill="#495057">Storage</text>
+                        </g>
+                        <g>
+                            <rect x="650" y="250" width="200" height="150" rx="10" fill="#e9ecef" stroke="#ced4da" stroke-width="1"/>
+                            <text x="750" y="325" text-anchor="middle" font-family="Arial" font-size="18" fill="#212529">Google Gemini API</text>
+                        </g>
+                        <!-- Arrows -->
+                        <path d="M 255 225 H 350" stroke="#6c757d" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                        <text x="280" y="215" font-size="12" fill="#6c757d">HTTP Request</text>
+                        <path d="M 350 225 H 255" stroke="#6c757d" stroke-width="2" fill="none" marker-end="url(#arrow)" stroke-dasharray="5,5"/>
+                        <text x="280" y="260" font-size="12" fill="#6c757d">HTML/JSON</text>
+                        <path d="M 450 195 V 205" stroke="#6c757d" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                        <path d="M 550 155 H 645" stroke="#6c757d" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                        <text x="560" y="145" font-size="12" fill="#6c757d">DB Query</text>
+                        <path d="M 550 325 H 645" stroke="#6c757d" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                        <text x="560" y="315" font-size="12" fill="#6c757d">AI Prompt</text>
+                    </svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====================================================================== -->
+        <!-- PART 2: THE CREATIVE WORKFLOW                                          -->
+        <!-- ====================================================================== -->
+        <section class="section" id="part2">
+            <h2>Part 2: The Creative Workflow</h2>
+
+            <div id="s2-1">
+                <h3>Phase 1: Idea Generation</h3>
+                <p>This is where the user's journey begins. The goal is to move from a vague topic to concrete, strategic directions.</p>
+                
+                <h4>User Perspective</h4>
+                <p>The user sees a clean interface with a large text area. They type their presentation topic, for example, "The impact of remote work on company culture." They see a slider to select the number of slides and a single button: "Generate Angles".</p>
+
+                <h4>End-to-End Flow</h4>
+                <ol>
+                    <li><strong>User Action:</strong> The user clicks the "Generate Angles" button.</li>
+                    <li>
+                        <strong>Frontend Logic (<code>idea-view.js</code> & <code>zustand-store.js</code>):</strong>
+                        <ul>
+                            <li>The `onClick` event handler calls the `generateAngles(topic)` action from the Zustand store.</li>
+                            <li>The store immediately sets its `isLoading` state to `true`. This causes a loading spinner to appear on the button, disabling it to prevent multiple clicks.</li>
+                            <li>The store uses the browser's `fetch` API to make a POST request to the application's own backend endpoint, `/api/ai`.</li>
+                            <li>The body of the request is a JSON object: <code>{ action: 'generate_angles', payload: { topic: 'The impact...' } }</code>.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Backend Logic (<code>api/ai/route.js</code> & <code>core/ai.js</code>):</strong>
+                        <ul>
+                            <li>The Next.js server receives the request at `route.js`. It parses the JSON body and identifies the `action` as `'generate_angles'`.</li>
+                            <li>It then calls the corresponding function: `generateStrategicAngles(topic)` located in the `core/ai.js` file.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>AI Integration (<code>core/ai.js</code>):</strong>
+                        <ul>
+                            <li>The `generateStrategicAngles` function constructs a highly specific prompt for the Google Gemini API. The prompt instructs the AI to act as a "world-class presentation strategist" and to return a response formatted as a clean JSON object containing an array of three distinct angles.</li>
+                            <li>A secure, server-to-server API call is made to Google Gemini.</li>
+                            <li>**Resilience:** If the API call fails or the returned JSON is invalid, a `catch` block triggers a fallback mechanism. This fallback logic generates sensible default angles (e.g., "The Productivity Angle," "The Employee Wellness Angle") to ensure the user always receives a valid response.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Result:</strong> The backend sends the JSON array of angles back to the frontend. The Zustand store receives this data, sets `isLoading` to `false`, and updates its `presentation.strategicAngles` state. React automatically re-renders the `idea-view.js` component, displaying the new angles as a list of clickable buttons.</li>
+                </ol>
+                <div class="file-spotlight">
+                    <strong>Code Spotlight:</strong> The core AI logic for this phase is in the <code>generateStrategicAngles</code> function within <code>/src/core/ai.js</code>.
+                </div>
+            </div>
+
+            <div id="s2-2">
+                <h3>Phase 2: Outline Creation</h3>
+                <p>Here, the chosen strategy is expanded into a full presentation plan, or "Blueprint."</p>
+                <h4>User Perspective</h4>
+                <p>The user reviews the generated angles and clicks on the one that best fits their goal. The view immediately transitions to the "Outline" page, where a loading animation is displayed. After a few moments, a detailed, slide-by-slide outline appears. To the side, there is a chat box labeled "AI Chat" where they can type requests to modify the outline.</p>
+
+                <h4>End-to-End Flow</h4>
+                <ol>
+                    <li><strong>User Action:</strong> The user clicks on an angle button.</li>
+                    <li>
+                        <strong>Frontend Logic (<code>idea-view.js</code> & <code>zustand-store.js</code>):</strong>
+                        <ul>
+                            <li>The `onClick` handler calls the `chooseAngleAndBuildBlueprint(angle)` action.</li>
+                            <li>This action performs an **optimistic UI update**: it immediately sets `activeView` to `'outline'`. This makes the app feel fast, as the UI changes before waiting for the backend.</li>
+                            <li>It sets `isLoading` to `true` and sends a new request to `/api/ai` with the action `'generate_blueprint'`.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Backend Logic (<code>api/ai/route.js</code> & <code>core/ai.js</code>):</strong>
+                        <ul>
+                            <li>The API route receives the request and calls the `generateBlueprint(topic, angle, slideCount)` function.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>AI Integration (<code>core/ai.js</code>):</strong>
+                        <ul>
+                            <li>This function uses the most detailed prompt in the application. It instructs the AI to act as a "Creative Director and Brand Designer."</li>
+                            <li>It explicitly demands two things:
+                                <ol>
+                                    <li>A complete **Generative Design System (GDS)**: A JSON object containing a color palette, font pairings, and mood keywords.</li>
+                                    <li>A slide-by-slide breakdown, emphasizing the use of rich content blocks (like `statistic_highlight` or `pull_quote`) over simple bullet points.</li>
+                                </ol>
+                            </li>
+                            <li>The AI generates and returns a single, large JSON object. The backend code then validates and sanitizes this object to ensure it matches the application's data model before sending it to the frontend.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Refinement Loop:</strong> If the user types "Make slide 3 more formal" into the chat box in <code>outline-view.js</code>, the `refineBlueprintViaChat` action sends the *entire current blueprint* and the chat message to the backend. The AI is instructed to make the change and return the *full, updated blueprint*, ensuring the frontend state can be replaced atomically and remains consistent.</li>
+                </ol>
+                 <div class="file-spotlight">
+                    <strong>Code Spotlight:</strong> The complex prompt for creating the blueprint is in the <code>generateBlueprint</code> function in <code>/src/core/ai.js</code>. The UI is managed by <code>/src/app/dashboard/outline-view.js</code>.
+                </div>
+            </div>
+            
+            <div id="s2-3">
+                <h3>Phase 3: Deck Rendering & Export</h3>
+                <p>The final phase turns the abstract blueprint into tangible, viewable slides.</p>
+                <h4>User Perspective</h4>
+                <p>After finalizing the outline, the user clicks "Finalize & Generate Presentation." The view switches to the "Deck" page. They see a placeholder animation that looks like code being written. Then, thumbnails of the slides begin appearing on the left, one by one. The main area shows a large preview of the currently selected slide. There are controls to switch between a "Preview" and a "Code" view, and an "Export PPTX" button.</p>
+
+                <h4>End-to-End Flow</h4>
+                <ol>
+                    <li><strong>User Action:</strong> The user clicks "Finalize & Generate Presentation".</li>
+                    <li>
+                        <strong>Frontend Logic (<code>zustand-store.js</code> & <code>deck-view.js</code>):</strong>
+                        <ul>
+                            <li>The `generateRecipes()` action is called. It switches the `activeView` to `'deck'` and clears any old slide recipes.</li>
+                            <li>It initiates a streaming `fetch` request to `/api/ai` with `action: 'generate_recipes_stream'`.</li>
+                            <li>The code then enters a `while` loop, reading from the response stream. As each text chunk (representing one slide recipe) arrives, it's parsed and added to the `slideRecipes` array in the store. This incremental update is what creates the "one by one" generation effect.</li>
+                            <li>The `deck-view.js` component renders the `slide-renderer.js` component, passing it the current slide's recipe.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Backend Logic & AI Integration (<code>core/ai.js</code>):</strong>
+                        <ul>
+                            <li>The `api/ai/route.js` calls the `generateSlideRecipesStream()` async generator function.</li>
+                            <li>This function doesn't return all the data at once. It first `yields` the theme data. Then, it loops through the slides in the blueprint. For each slide, it constructs a prompt asking the AI to generate a renderable recipe. A key instruction is for the AI to prefer generating self-contained HTML/CSS/JS (`code` mode) that uses CSS variables for theming.</li>
+                            <li>As soon as the AI returns a recipe for a single slide, the function `yields` it, sending it immediately to the client. This process repeats for all slides.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>PPTX Export Flow (<code>api/export-pptx/route.js</code>):</strong>
+                        <ul>
+                            <li>When the user clicks "Export PPTX", the frontend sends the *final* presentation JSON data to this separate, dedicated API route.</li>
+                            <li>This route does **not** call the AI. It uses the `pptxgenjs` library to programmatically construct a PowerPoint file in memory. It iterates through the slide recipes, adding shapes, text boxes, and placeholders to each slide based on the JSON data.</li>
+                            <li>The final file is sent back to the browser as a binary buffer, triggering a download.</li>
+                        </ul>
+                    </li>
+                </ol>
+                <div class="file-spotlight">
+                    <strong>Code Spotlight:</strong> The streaming logic is in the `generateSlideRecipesStream` function in <code>/src/core/ai.js</code> and the corresponding `generateRecipes` action in <code>/src/utils/zustand-store.js</code>. Slide rendering is handled by <code>/src/components/slide-renderer.js</code>.
+                </div>
+            </div>
+        </section>
+        
+        <!-- ====================================================================== -->
+        <!-- PART 3: The Developer's Deep Dive                                      -->
+        <!-- ====================================================================== -->
+        <section class="section" id="part3">
+            <h2>Part 3: The Developer's Deep Dive</h2>
+
+            <div id="s3-1">
+                <h3>Database Schema Explained</h3>
+                <p>The entire database is defined in a single SQL file for reproducibility. Here's a breakdown of the key parts.</p>
+                <div class="diagram">
+                    <h4>Supabase Row Level Security (RLS) Explained</h4>
+                    <svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+                        <style>.label{font-family:Arial;font-size:14px;}.db{font-size:16px;font-weight:bold;}.user{font-size:14px;font-weight:bold;}.policy{font-size:12px;font-style:italic;fill:#007bff;}</style>
+                        <!-- Database Table -->
+                        <rect x="250" y="50" width="300" height="200" rx="10" fill="#f8f9fa" stroke="#ced4da"/>
+                        <text x="400" y="80" text-anchor="middle" class="db">`presentations` Table</text>
+                        <line x1="260" y1="100" x2="540" y2="100" stroke="#dee2e6"/>
+                        <text x="320" y="120" class="label">id: 1, topic: "...", user_id: 'abc'</text>
+                        <text x="320" y="150" class="label">id: 2, topic: "...", user_id: 'xyz'</text>
+                        <text x="320" y="180" class="label">id: 3, topic: "...", user_id: 'abc'</text>
+
+                        <!-- Users -->
+                        <g>
+                            <circle cx="100" cy="115" r="30" fill="#e9ecef"/>
+                            <text x="100" y="120" text-anchor="middle" class="user">User A</text>
+                            <text x="100" y="135" text-anchor="middle" font-size="10">(ID: 'abc')</text>
+                        </g>
+                         <g>
+                            <circle cx="100" cy="215" r="30" fill="#e9ecef"/>
+                            <text x="100" y="220" text-anchor="middle" class="user">User B</text>
+                            <text x="100" y="235" text-anchor="middle" font-size="10">(ID: 'xyz')</text>
+                        </g>
+
+                        <!-- RLS Policy Gate -->
+                        <rect x="180" y="40" width="20" height="220" fill="#007bff" opacity="0.2"/>
+                        <text x="190" y="30" text-anchor="middle" font-size="12" writing-mode="tb">RLS Gate</text>
+
+                        <!-- Arrows -->
+                        <path d="M 135 115 H 180" stroke="#007bff" stroke-width="2" marker-end="url(#arrow)"/>
+                        <text x="145" y="105" font-size="12">SELECT *</text>
+                        <path d="M 200 115 H 250" stroke="#28a745" stroke-width="2" marker-end="url(#arrow)"/>
+                        <path d="M 200 175 H 250" stroke="#28a745" stroke-width="2" marker-end="url(#arrow)"/>
+                        <path d="M 200 145 H 250" stroke="#dc3545" stroke-width="2" marker-end="url(#arrow)"/>
+                        <text x="350" y="250" text-anchor="middle" class="policy">Policy: `user_id = auth.uid()`</text>
+                        <text x="650" y="150" text-anchor="middle" class="label">User A can only see<tspan x="650" dy="1.2em">rows where user_id</tspan><tspan x="650" dy="1.2em">is 'abc'.</tspan></text>
+                    </svg>
+                </div>
+                <pre><code>-- This command enables advanced cryptographic functions, like generating UUIDs.
+create extension if not exists pgcrypto;
+
+-- This is a reusable function that we'll attach to tables.
+-- It automatically sets the 'updated_at' column to the current time on any change.
+create or replace function public.set_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end; $$;
+
+-- This is the main table storing all user presentations.
+create table if not exists public.presentations (
+  id uuid primary key default gen_random_uuid(), -- A unique ID for each presentation.
+  user_id uuid not null, -- The ID of the user who owns this presentation. CRITICAL for security.
+  topic text not null default '',
+  blueprint jsonb, -- The 'jsonb' type is a binary, indexed format for JSON, making queries faster.
+  recipes jsonb,
+  status text not null default 'idea', -- Tracks the workflow stage.
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Attaching the trigger to our table.
+create trigger trg_presentations_updated_at
+  before insert or update on public.presentations
+  for each row execute procedure public.set_updated_at();
+
+-- This command turns on Row Level Security for the table. By default, no one can see anything.
+alter table public.presentations enable row level security;
+
+-- Now we define a policy. This is a rule that allows access.
+-- This policy says: "A user is allowed to SELECT (read) rows from this table
+-- ONLY IF the 'user_id' in that row is equal to their own authenticated user ID."
+drop policy if exists "presentations_select_own" on public.presentations;
+create policy "presentations_select_own" on public.presentations for select
+using (user_id = auth.uid());
+
+-- We create similar policies for INSERT, UPDATE, and DELETE.
+</code></pre>
+            </div>
+            
+            <div id="s3-2">
+                <h3>Frontend Architecture</h3>
+                <p>The frontend is a reactive UI built on a foundation of component architecture and centralized state management.</p>
+                <div class="diagram">
+                    <h4>Zustand Unidirectional Data Flow</h4>
+                    <svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+                        <style>.label{font-family:Arial;font-size:16px;fill:#212529;}.desc{font-size:12px;fill:#6c757d;}</style>
+                        <!-- Components -->
+                        <rect x="50" y="100" width="150" height="80" rx="10" fill="#e9ecef" stroke="#ced4da"/>
+                        <text x="125" y="145" text-anchor="middle" class="label">React Component</text>
+                        
+                        <rect x="325" y="100" width="150" height="80" rx="10" fill="#e9ecef" stroke="#ced4da"/>
+                        <text x="400" y="145" text-anchor="middle" class="label">Zustand Action</text>
+                        
+                        <rect x="600" y="100" width="150" height="80" rx="10" fill="#e9ecef" stroke="#ced4da"/>
+                        <text x="675" y="145" text-anchor="middle" class="label">Zustand Store</text>
+
+                        <!-- Arrows -->
+                        <path d="M 205 120 H 320" stroke="#6c757d" stroke-width="2" marker-end="url(#arrow)"/>
+                        <text x="240" y="110" class="desc">1. User Event calls Action</text>
+
+                        <path d="M 480 120 H 595" stroke="#6c757d" stroke-width="2" marker-end="url(#arrow)"/>
+                        <text x="510" y="110" class="desc">2. Action updates State</text>
+                        
+                        <path d="M 750 160 C 600 250, 200 250, 50 160" stroke="#6c757d" stroke-width="2" stroke-dasharray="5,5" fill="none" marker-end="url(#arrow)"/>
+                        <text x="400" y="220" text-anchor="middle" class="desc">3. State Change triggers UI Re-render</text>
+                    </svg>
+                </div>
+                <ol>
+                    <li>A user interacts with a <strong>React Component</strong> (e.g., clicks a button).</li>
+                    <li>This calls an <strong>Action</strong> in the Zustand store (e.g., <code>generateAngles()</code>).</li>
+                    <li>The Action performs logic (like fetching from an API) and then updates the central <strong>Store</strong>.</li>
+                    <li>Because the React Component is subscribed to the store, the state change automatically triggers a re-render of the UI with the new data.</li>
+                </ol>
+            </div>
+            
+            <div id="s3-3">
+                <h3>Backend Architecture</h3>
+                <p>The backend is lean and powerful, leveraging serverless functions within Next.js to handle all business logic.</p>
+                <div class="diagram">
+                    <h4>Backend Orchestrator Pattern</h4>
+                     <svg viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg">
+                        <style>.label{font-family:Arial;font-size:14px;}.desc{font-size:12px;fill:#6c757d;}</style>
+                        <!-- Frontend -->
+                        <rect x="50" y="160" width="120" height="80" rx="10" fill="#e9ecef" stroke="#ced4da"/>
+                        <text x="110" y="205" text-anchor="middle" class="label">Frontend</text>
+                        
+                        <!-- API Route -->
+                        <rect x="230" y="100" width="140" height="200" rx="10" fill="#e9ecef" stroke="#ced4da"/>
+                        <text x="300" y="130" text-anchor="middle" class="label">/api/ai/route.js</text>
+                        <text x="300" y="190" text-anchor="middle" font-size="24">switch</text>
+                        <text x="300" y="210" text-anchor="middle" font-size="16">(action)</text>
+
+                        <!-- Core Functions -->
+                        <rect x="430" y="50" width="150" height="60" rx="5" fill="#e9ecef" stroke="#ced4da"/>
+                        <text x="505" y="85" text-anchor="middle" class="label">generateAngles()</text>
+                        
+                        <rect x="430" y="130" width="150" height="60" rx="5" fill="#e9ecef" stroke="#ced4da"/>
+                        <text x="505" y="165" text-anchor="middle" class="label">generateBlueprint()</text>
+
+                        <rect x="430" y="210" width="150" height="60" rx="5" fill="#e9ecef" stroke="#ced4da"/>
+                        <text x="505" y="245" text-anchor="middle" class="label">generateRecipes()</text>
+
+                         <rect x="430" y="290" width="150" height="60" rx="5" fill="#e9ecef" stroke="#ced4da"/>
+                        <text x="505" y="325" text-anchor="middle" class="label">...</text>
+
+                        <!-- Arrows -->
+                        <path d="M 175 200 H 225" stroke="#6c757d" marker-end="url(#arrow)"/>
+                        <text x="180" y="190" class="desc">POST request with 'action'</text>
+
+                        <path d="M 375 190 C 410 120, 410 120, 425 80" stroke="#6c757d" fill="none" marker-end="url(#arrow)"/>
+                        <text x="380" y="140" class="desc">case 'angles'</text>
+
+                        <path d="M 375 200 H 425" stroke="#6c757d" fill="none" marker-end="url(#arrow)"/>
+                        <text x="380" y="180" class="desc">case 'blueprint'</text>
+
+                        <path d="M 375 210 C 410 280, 410 280, 425 240" stroke="#6c757d" fill="none" marker-end="url(#arrow)"/>
+                         <text x="380" y="260" class="desc">case 'recipes'</text>
+
+                    </svg>
+                </div>
+                <blockquote>
+                    <strong>The Orchestrator Pattern:</strong> Instead of having many small API endpoints, we use a single endpoint: <code>/api/ai/route.js</code>. The frontend sends a request with an <code>action</code> field (e.g., 'generate_blueprint'). The route then acts as a traffic controller, calling the correct function from <code>/core/ai.js</code> based on the action. This keeps the API surface clean and simplifies security.
+                </blockquote>
+
+                <h4>Prompt Engineering in <code>/core/ai.js</code></h4>
+                <p>This is where we "program" the AI. The quality of the AI's output is almost entirely dependent on the quality of our prompts. Key strategies include:</p>
+                <ul>
+                    <li><strong>Persona Setting:</strong> We tell the AI who to be (e.g., <code>"You are a world-class presentation strategist..."</code>) to get expert-level results.</li>
+                    <li><strong>Strict Schema Enforcement:</strong> We provide a detailed JSON structure in the prompt and command the AI to follow it exactly.</li>
+                    <li><strong>Robust Fallbacks:</strong> Every function that calls the AI is wrapped in a <code>try...catch</code> block. If the AI fails, the function returns a sensible, hard-coded default. This makes the application resilient.</li>
+                </ul>
+            </div>
+            
+            <div id="s3-4">
+                <h3>Local Setup Guide</h3>
+                <p>Follow these steps to get a complete, working version of Nether AI running on your local machine for development.</p>
+                <ol>
+                    <li><strong>Prerequisites:</strong> Ensure you have Node.js (version 20 or newer is recommended) and Git installed on your system.</li>
+                    <li>
+                        <strong>Clone the Repository:</strong> Open your terminal or command prompt and run the following command to download the project source code:
+                        <pre><code>git clone &lt;repository_url&gt;
+cd &lt;project_folder&gt;</code></pre>
+                    </li>
+                    <li>
+                        <strong>Install Dependencies:</strong> Run the Node Package Manager (npm) to install all the libraries listed in <code>package.json</code>.
+                        <pre><code>npm install</code></pre>
+                    </li>
+                    <li>
+                        <strong>Set Up Your Supabase Project:</strong>
+                        <ul>
+                            <li>Go to <a href="https://supabase.com/" target="_blank">supabase.com</a>, sign up for a free account, and create a new project.</li>
+                            <li>Once your project is ready, navigate to <strong>Project Settings</strong> (the gear icon) and then to the <strong>API</strong> tab.</li>
+                            <li>Here you will find your <strong>Project URL</strong> and your <strong><code>anon</code> public key</strong>. Keep this page open.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Configure Your Local Environment:</strong>
+                        <ul>
+                            <li>In your code editor, create a new file at the root of the project and name it exactly <code>.env.local</code>.</li>
+                            <li>Copy and paste the following into this file, replacing the placeholder text with the actual keys from your Supabase project and your Google Gemini API key.</li>
+                        </ul>
+                        <pre><code># .env.local - This file contains your secret keys and is ignored by Git.
+NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_PROJECT_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+GOOGLE_GEMINI_API_KEY=YOUR_GOOGLE_GEMINI_API_KEY</code></pre>
+                    </li>
+                    <li>
+                        <strong>Initialize the Database Schema:</strong>
+                        <ul>
+                            <li>Go back to your Supabase project dashboard and navigate to the <strong>SQL Editor</strong>.</li>
+                            <li>Open the <code>SUPABASE_SCHEMA_AND_SQL.txt</code> file from the project's source code. Select and copy its entire contents.</li>
+                            <li>Paste the copied SQL into the Supabase SQL Editor and click the <strong>"RUN"</strong> button. This will create all the tables, security policies, and functions your application needs.</li>
+                        </ul>
+                    </li>
+                     <li>
+                        <strong>Create the Storage Bucket:</strong>
+                        <ul>
+                            <li>In Supabase, navigate to the <strong>Storage</strong> section from the main menu.</li>
+                            <li>Click "New bucket", name it <code>presentation-assets</code>, and make sure the "Public bucket" switch is turned <strong>ON</strong>. This allows the application to display uploaded images.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Start the Development Server:</strong>
+                        <pre><code>npm run dev</code></pre>
+                        <p>The application should now be running. Open your web browser and navigate to <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> to see it in action.</p>
+                    </li>
+                </ol>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sections = document.querySelectorAll('.main-content > .section, .main-content div[id]');
+            const navLinks = document.querySelectorAll('.sidebar nav a');
+
+            const observer = new IntersectionObserver((entries) => {
+                let topmostVisibleSectionId = null;
+                
+                const visibleEntries = entries.filter(e => e.isIntersecting);
+                if (visibleEntries.length > 0) {
+                    topmostVisibleSectionId = visibleEntries.reduce((a, b) => {
+                        return a.boundingClientRect.top < b.boundingClientRect.top ? a : b;
+                    }).target.id;
+                }
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    const parentLi = link.closest('li');
+                    
+                    if (topmostVisibleSectionId) {
+                        const href = link.getAttribute('href');
+                        const targetId = href.substring(1);
+                        const targetElement = document.getElementById(targetId);
+
+                        if (targetId === topmostVisibleSectionId) {
+                            link.classList.add('active');
+                            if (link.parentElement.classList.contains('sub-menu')) {
+                               const parentAnchor = link.closest('ul.sub-menu').previousElementSibling;
+                               if(parentAnchor && parentAnchor.tagName === 'A') {
+                                   parentAnchor.classList.add('active');
+                               }
+                            }
+                        } else if (targetElement && targetElement.classList.contains('section') && targetElement.contains(document.getElementById(topmostVisibleSectionId))) {
+                            link.classList.add('active');
+                        }
+                    }
+                });
+
+            }, { threshold: 0.1, rootMargin: "-40% 0px -50% 0px" });
+
+             document.querySelectorAll('.section').forEach(section => {
+                observer.observe(section);
+            });
+             document.querySelectorAll('.main-content div[id]').forEach(el => {
+                observer.observe(el);
+            });
+        });
+    </script>
+</body>
+</html>

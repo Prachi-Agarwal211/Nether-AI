@@ -209,37 +209,66 @@ export function SlideRenderer({ recipe, showGrid = false }) {
   const rt = recipe?.theme_runtime || {};
   const bgColor = recipe?.background?.color || rt.background || '#000000';
   const cssVars = `:root{--gds-text-primary:${rt.primary||'#ffffff'};--gds-text-secondary:${rt.secondary||'#cccccc'};--gds-bg-primary:${rt.background||'#0b0b0f'};--gds-bg-secondary:${rt.background||'#11131a'};--gds-accent-primary:${rt.accent||'#ffe1c6'};--gds-accent-secondary:${rt.accent||'#ffd199'};}`;
-  const fullHtml = code && (code.html || code.css || code.js)
-    ? `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
-      <meta name="viewport" content="width=device-width,initial-scale=1"/>
-      <style>
-        html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:${bgColor};}
-        ${cssVars}
-        ${code.css || ''}
-      </style>
-    </head><body>
-      ${code.html || ''}
-      <script>
-        // Bridge errors to parent for debugging in DeckView
-        (function(){
-          try {
-            const post = (payload) => {
-              try { if (window.parent) window.parent.postMessage({ type: 'slide_error', ...payload }, '*'); } catch (_) {}
-            };
-            window.addEventListener('error', function(e){
-              post({ message: e?.message || 'Unknown error', stack: (e?.error && e.error.stack) || null });
-            });
-            const __origErr = console.error;
-            console.error = function(){
-              try { post({ message: Array.from(arguments).map(a => String(a)).join(' ') }); } catch(_){}
-              return __origErr.apply(this, arguments);
-            };
-          } catch(_){}
-        })();
-      </script>
-      <script type="module">try{${code.js || ''}}catch(e){console.error('slide js error',e)}</script>
-    </body></html>`
-    : null;
+  let fullHtml = null;
+  if (code && (code.html || code.css || code.js)) {
+    const isFullDoc = typeof code.html === 'string' && /<\s*html|<\s*head|<\s*body/i.test(code.html);
+    if (isFullDoc) {
+      // Use AI-provided full document as-is
+      fullHtml = code.html;
+    } else {
+      // Build our standard shell and inject AI inner markup
+      fullHtml = `<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <!-- Tailwind for rapid layout/utility classes -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <!-- ECharts for charts -->
+        <script src="https://agnes-cdn.kiwiar.com/website/js/npm/echarts.min.js"></script>
+        <!-- Material Icons -->
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+        <style>
+          html, body { margin:0; padding:0; overflow:hidden; font-size: 1.4vw }
+          body { background-color: #0A0E2B; }
+          .slide { width:1280px; min-height:720px; padding:40px 60px; box-sizing:border-box; overflow:hidden; position:relative; background-color:#0A0E2B; display:flex; flex-direction:column; }
+          .custom-border { border: 2px solid #910DF9; }
+          .electric-blue { color: #00BFFF; }
+          .panel-bg { background-color: rgba(16, 22, 63, 0.7); }
+          /* Theme bindings */
+          body { color: var(--gds-text-primary,#fff); font-family: var(--gds-font-body,ui-sans-serif,system-ui); }
+          ${code.css || ''}
+        </style>
+      </head>
+      <body style="background-color:#0A0E2B;">
+        <div class="slide text-white" style="background-color:#0A0E2B;">
+          ${code.html || ''}
+        </div>
+        <!-- Preload libraries for AI-authored slides (legacy support) -->
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>try{ window.mermaid && window.mermaid.initialize({ startOnLoad: true }); }catch(_){};</script>
+        <script>
+          // Bridge console errors back to parent for better DX
+          (function(){
+            try {
+              const post = (payload)=>{ parent?.postMessage({ __nether_slide_error__: true, ...payload }, '*'); };
+              window.addEventListener('error', function(e){
+                post({ message: e?.message || 'Unknown error', stack: (e?.error && e.error.stack) || null });
+              });
+              const __origErr = console.error;
+              console.error = function(){
+                try { post({ message: Array.from(arguments).map(a => String(a)).join(' ') }); } catch(_){ }
+                return __origErr.apply(this, arguments);
+              };
+            } catch(_){ }
+          })();
+        </script>
+        <script type="module">try{${code.js || ''}}catch(e){console.error('slide js error',e)}</script>
+      </body>
+    </html>`;
+    }
+  }
 
   if (code && (code.html || code.css || code.js)) {
     return (

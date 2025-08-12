@@ -1,54 +1,78 @@
  const GOOGLE_GEMINI_API_KEY = process.env.GOOGLE_GEMINI_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_GEMINI_API_KEY;
- const DEFAULT_MODEL = 'gemini-2.0-flash';
+const DEFAULT_MODEL = 'gemini-2.0-flash';
 
- async function callGoogleGemini({ system, user, json = true }) {
-   if (!GOOGLE_GEMINI_API_KEY) {
-     // No key: return null so the caller can trigger fallbacks
-     return null;
-   }
+async function callGoogleGemini({ system, user, json = true }) {
+  if (!GOOGLE_GEMINI_API_KEY) {
+    // No key: return null so the caller can trigger fallbacks
+    return null;
+  }
 
-   // Build request body following Gemini REST API schema
-   const body = {
-     contents: user ? [{ role: 'user', parts: [{ text: user }] }] : [],
-     generationConfig: {
-       response_mime_type: json ? 'application/json' : 'text/plain',
-     },
-   };
+  // Build request body following Gemini REST API schema
+  const body = {
+    contents: user ? [{ role: 'user', parts: [{ text: user }] }] : [],
+    generationConfig: {
+      response_mime_type: json ? 'application/json' : 'text/plain',
+    },
+  };
 
-   if (system) {
-     // Use system_instruction rather than a 'system' role message
-     body.system_instruction = { parts: [{ text: system }] };
-   }
+  // Ensure the system prompt is respected by Gemini
+  if (system) {
+    body.system_instruction = { parts: [{ text: system }] };
+  }
 
-   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_MODEL}:generateContent`, {
-     method: 'POST',
-     headers: {
-       'Content-Type': 'application/json',
-       'x-goog-api-key': GOOGLE_GEMINI_API_KEY,
-     },
-     body: JSON.stringify(body),
-   });
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_MODEL}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': GOOGLE_GEMINI_API_KEY,
+    },
+    body: JSON.stringify(body),
+  });
 
-   if (!res.ok) {
-     let errMsg = 'Unknown Google Gemini API error';
-     try {
-       const error = await res.json();
-       errMsg = error?.error?.message || JSON.stringify(error);
-     } catch (_) {}
-     throw new Error(`Google Gemini API error: ${errMsg}`);
-   }
+  if (!res.ok) {
+    let errMsg = 'Unknown Google Gemini API error';
+    try {
+      const error = await res.json();
+      errMsg = error?.error?.message || JSON.stringify(error);
+    } catch (_) {}
+    throw new Error(`Google Gemini API error: ${errMsg}`);
+  }
 
-   const data = await res.json();
-   const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-   if (!content) throw new Error('Empty Google Gemini API response');
+  const data = await res.json();
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const raw = parts.map((p) => (p?.text || '')).join('\n').trim();
+  if (!raw) throw new Error('Empty Google Gemini API response');
 
-   try {
-     return json ? JSON.parse(content) : content;
-   } catch {
-     // If model returned non-JSON while json=true, signal fallback
-     return null;
-   }
- }
+  if (!json) return raw;
+
+  // Robust JSON extraction: handle code fences and surrounding prose
+  const tryParse = (txt) => {
+    try { return JSON.parse(txt); } catch { return undefined; }
+  };
+
+  // 1) Direct parse
+  let parsed = tryParse(raw);
+  if (parsed !== undefined) return parsed;
+
+  // 2) Extract from ```json ... ``` block
+  const fenceMatch = raw.match(/```json\s*([\s\S]*?)\s*```/i) || raw.match(/```\s*([\s\S]*?)\s*```/i);
+  if (fenceMatch && fenceMatch[1]) {
+    parsed = tryParse(fenceMatch[1].trim());
+    if (parsed !== undefined) return parsed;
+  }
+
+  // 3) Extract first balanced JSON object using braces
+  const firstBrace = raw.indexOf('{');
+  const lastBrace = raw.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = raw.slice(firstBrace, lastBrace + 1);
+    parsed = tryParse(candidate);
+    if (parsed !== undefined) return parsed;
+  }
+
+  // 4) Give up and signal fallback
+  return null;
+}
 
 // 6.2 generate_angles
 export async function generateStrategicAngles(topic) {
@@ -602,117 +626,156 @@ export async function generateSlideRecipes(blueprint) {
   return { theme_runtime, recipes };
 }
 
-// Streaming variant: progressively yield theme and slide recipes
-export async function* generateSlideRecipesStream(blueprint) {
-  if (!blueprint || !Array.isArray(blueprint.slides)) {
-    throw new Error('Valid blueprint required');
+export async function generateSingleSlideRecipe({ blueprint, slide, theme_runtime }) {
+  const system = [
+    'You are an expert Creative Director and Frontend Engineer who crafts stunning, animated, interactive presentation slides.',
+    'Strictly return a single JSON object: { code: { html, css, js } } with no extra text.',
+    'RUNTIME ENVIRONMENT inside an iframe:',
+    '- TailwindCSS is available via <script src="https://cdn.tailwindcss.com">.',
+    '- Apache ECharts is available as a global (window.echarts).',
+    '- Google Material Icons font is available.',
+    '- Mermaid and Chart.js are also preloaded, but prefer ECharts for charts if needed.',
+    'STRUCTURE:',
+    '- Do NOT include <html>, <head>, or <body> elements; html must be the inner markup that will be inserted inside a <div class="slide"> container.',
+    '- Use Tailwind utility classes extensively for layout (flex/grid), spacing, and typography.',
+    '- Keep within a 1280x720 logical slide; respect safe padding (already provided by the container).',
+    'STYLE:',
+    '- Use CSS variables for theme: var(--gds-text-primary), var(--gds-text-secondary), var(--gds-accent-primary), var(--gds-font-heading), var(--gds-font-body).',
+    '- Prefer elegant dark theme aesthetics matching background #0A0E2B; content text should be readable.',
+    'INTERACTIVITY/ANIMATION:',
+    '- You may add subtle CSS animations; for charts, initialize ECharts in js using a container div with an id.',
+    '- Avoid external network fetches; use inline data for charts.',
+    'ACCESSIBILITY:',
+    '- Provide aria-labels for key sections; images should have alt text.',
+  ].join('\n');
+
+  const user = JSON.stringify({
+    // Keep slide context minimal to reduce tokens
+    slide: {
+      slide_id: slide?.slide_id,
+      slide_title: slide?.slide_title,
+      content_points: slide?.content_points,
+      type: slide?.type || slide?.layout_type,
+    },
+    theme_runtime,
+    instructions: {
+      goal: 'Produce a polished slide for the given title/content. Use Tailwind utilities, optional ECharts, and Material Icons.',
+      output_contract: 'Return only JSON with { code: { html, css, js } }; html is inner markup for the .slide container, no <html>/<head>/<body>.',
+      layout: 'Leverage grid/flex; include a clear header/title; arrange content panels cleanly; avoid overflow.',
+      charts: 'If the slide suggests a chart, create a <div id="chart" class="w-full h-64"></div> and in js initialize ECharts inline with simple example data.',
+      accessibility: 'Add aria-labels and alt text.',
+    }
+  });
+
+  let out = null;
+  try {
+    out = await callGoogleGemini({ system, user, json: true });
+  } catch (_) {}
+
+  if (!out || !out.code || typeof out.code !== 'object') {
+    throw new Error('Invalid response from AI');
   }
 
-  // Derive theme_runtime similarly to non-streaming path
-  const pal = blueprint?.theme?.palette || {};
-  const theme_runtime = {
-    background: pal.background_primary || pal.background || '#000000',
-    primary: pal.text_primary || pal.primary || '#ffffff',
-    secondary: pal.text_secondary || pal.secondary || '#cccccc',
-    accent: pal.accent_primary || pal.accent || '#ffe1c6',
+  return out.code;
+}
+
+// Simple fallback recipe factory used when AI fails for a slide
+function createFallbackRecipe(slideBlueprint, theme_runtime) {
+  const title = slideBlueprint?.slide_title || 'Untitled Slide';
+  const bullets = slideBlueprint?.content_points || [];
+  const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const html = `
+    <div class="fallback-slide" aria-label="Fallback slide">
+      <h1>${esc(title)}</h1>
+      ${bullets.length ? `<ul>${bullets.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : ''}
+      <div class="error-notice">AI generation failed. Showing fallback.</div>
+    </div>`;
+  const css = `
+    .fallback-slide{width:100%;height:100%;padding:6vh 7vw;display:flex;flex-direction:column;gap:1.2rem;justify-content:center;align-items:flex-start;background:var(--gds-bg-secondary,#111);box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--gds-accent-primary,#ffe1c6),#000 80%)}
+    .fallback-slide h1{font:600 3.2rem/1.2 var(--gds-font-heading,ui-sans-serif);color:var(--gds-text-primary,#fff);margin:0 0 0.5rem}
+    .fallback-slide ul{margin:0;padding-left:1.2rem;color:var(--gds-text-secondary,#ccc);font:400 1.2rem/1.5 var(--gds-font-body,ui-sans-serif)}
+    .error-notice{position:absolute;bottom:16px;right:20px;color:color-mix(in oklab,var(--gds-accent-primary,#ffe1c6),#000 30%);font:500 0.8rem/1 var(--gds-font-body,ui-sans-serif)}
+  `;
+  return {
+    slide_id: slideBlueprint?.slide_id,
+    layout_type: 'Fallback',
+    background: { color: theme_runtime?.background || '#000' },
+    elements: [
+      { type: 'Title', content: title, style_hints: { size: 'lg' } }
+    ],
+    code: { html, css, js: '' },
   };
+}
 
-  // Yield theme first so the UI can style immediately
-  yield { type: 'theme_runtime', theme_runtime };
+// Streaming variant: progressively yield theme, progress, and slide recipes
+export async function* generateSlideRecipesStream(blueprint) {
+  try {
+    if (!blueprint || typeof blueprint !== 'object') throw new Error('Blueprint required');
 
-  // Helper to clamp grid values (mirror semantics)
-  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
-  const fixGrid = (g) => {
-    const cg = {
-      colStart: clamp(parseInt(g?.colStart || 1, 10), 1, 12),
-      colEnd: clamp(parseInt(g?.colEnd || 13, 10), 2, 13),
-      rowStart: clamp(parseInt(g?.rowStart || 1, 10), 1, 100),
-      rowEnd: clamp(parseInt(g?.rowEnd || 3, 10), 2, 200),
+    // Derive theme_runtime similarly to non-streaming path
+    const pal = blueprint?.theme?.palette || {};
+    const theme_runtime = {
+      background: pal.background_primary || pal.background || '#000000',
+      primary: pal.text_primary || pal.primary || '#ffffff',
+      secondary: pal.text_secondary || pal.secondary || '#cccccc',
+      accent: pal.accent_primary || pal.accent || '#ffe1c6',
     };
-    if (cg.colEnd <= cg.colStart) cg.colEnd = Math.min(13, cg.colStart + 1);
-    if (cg.rowEnd <= cg.rowStart) cg.rowEnd = cg.rowStart + 1;
-    return cg;
-  };
 
-  // For each slide, synthesize a reasonable default quickly.
-  // In a future iteration, call the model per slide and yield as they arrive.
-  for (let i = 0; i < blueprint.slides.length; i++) {
-    const s = blueprint.slides[i];
-    // Simulate latency to create a live progression effect
-    // eslint-disable-next-line no-await-in-loop
-    await new Promise((r) => setTimeout(r, 800));
+    // Yield theme first so the UI can style immediately
+    yield { type: 'theme_runtime', theme_runtime };
+    yield { type: 'progress', message: 'Preparing parallel slide generation…' };
 
-    const isTitle = i === 0;
-    const layout_type = isTitle ? 'TitleOnly' : 'TitleAndBullets';
-
-    // Build fallback grid elements
-    const elements = [];
-    elements.push({
-      type: 'Title',
-      content: s.slide_title,
-      style_hints: { size: isTitle ? 'xl' : 'lg', align: isTitle ? 'center' : 'left', accent: isTitle },
-      grid: fixGrid({ colStart: isTitle ? 2 : 2, colEnd: isTitle ? 12 : 12, rowStart: 2, rowEnd: isTitle ? 5 : 4 }),
-    });
-    const bullets = !isTitle ? (s.blocks?.find((b) => b.bullet_points)?.bullet_points?.items || s.content_points || []) : [];
-    if (!isTitle) {
-      elements.push({
-        type: 'BulletedList',
-        content: bullets,
-        style_hints: { size: 'md' },
-        grid: fixGrid({ colStart: 2, colEnd: 12, rowStart: 4, rowEnd: 12 }),
-      });
+    const slides = Array.isArray(blueprint.slides) ? blueprint.slides : [];
+    const total = slides.length;
+    if (!total) {
+      yield { type: 'progress', message: 'No slides in blueprint.' };
+      return;
     }
 
-    const background = { color: theme_runtime.background };
+    // Fire all slide jobs in parallel; no fallbacks
+    const pending = new Map(); // index -> promise
+    for (let i = 0; i < total; i++) {
+      const s = slides[i];
+      yield { type: 'progress', message: `Starting slide ${i + 1} of ${total}: ${s?.slide_title || ''}` };
+      const job = (async () => {
+        try {
+          const code = await generateSingleSlideRecipe({ blueprint, slide: s, theme_runtime });
+          const recipe = {
+            slide_id: s.slide_id,
+            layout_type: 'CodeIframe',
+            background: { color: theme_runtime.background },
+            elements: [
+              { type: 'Title', content: s.slide_title, style_hints: { size: i === 0 ? 'xl' : 'lg', accent: i === 0 } }
+            ],
+            code,
+          };
+          return { index: i, title: s.slide_title, recipe };
+        } catch (err) {
+          return { index: i, title: s.slide_title, error: err?.message || 'AI generation error' };
+        }
+      })();
+      // Wrap to carry index through Promise.race
+      pending.set(i, job.then((payload) => ({ index: i, payload })));
+    }
 
-    // Construct code-mode rendition (html/css/js) using --gds-* variables
-    const htmlParts = [];
-    htmlParts.push(`<!DOCTYPE html>`);
-    htmlParts.push(`<html lang="en">`);
-    htmlParts.push(`<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>`);
-    htmlParts.push(`<body>`);
-    htmlParts.push(`<div class="slide" role="group" aria-label="presentation slide">
-  <header class="title" aria-label="slide title">${(s.slide_title || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</header>
-  ${!isTitle ? `<section class="content">
-    <ul>
-      ${(Array.isArray(bullets) ? bullets : []).slice(0,8).map(b => `<li>${String(b||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</li>`).join('\n      ')}
-    </ul>
-  </section>` : ''}
-</div>`);
-    htmlParts.push(`</body></html>`);
+    while (pending.size) {
+      const winner = await Promise.race(Array.from(pending.values()));
+      const { index, payload } = winner || {};
+      pending.delete(index);
+      if (payload?.error) {
+        yield { type: 'progress', message: `Failed slide ${index + 1} of ${total}: ${payload.title} — ${payload.error}` };
+      } else if (payload?.recipe) {
+        yield { type: 'progress', message: `Completed slide ${index + 1} of ${total}: ${payload.title || ''}` };
+        yield { type: 'recipe', recipe: payload.recipe };
+      } else {
+        yield { type: 'progress', message: `Slide ${index + 1} finished with no result.` };
+      }
+    }
 
-    const css = `:root{color-scheme:light dark}
-*{box-sizing:border-box}
-html,body{margin:0;height:100%}
-body{background:var(--gds-bg-primary,#000);color:var(--gds-text-primary,#fff);font-family:var(--gds-font-body,ui-sans-serif,system-ui);} 
-.slide{position:relative;width:100%;height:100%;padding:6vh 6vw;display:flex;flex-direction:column;gap:2vh;overflow:hidden}
-.slide::before{content:"";position:absolute;inset:-20%;background:radial-gradient(60% 60% at 10% 10%, color-mix(in srgb, var(--gds-accent-primary), transparent 70%), transparent),
- linear-gradient(120deg, color-mix(in srgb, var(--gds-accent-primary), transparent 70%), transparent);
- filter: blur(40px);opacity:0.25;animation: bgfloat 12s ease-in-out infinite alternate;pointer-events:none}
-.title{font-family:var(--gds-font-heading,ui-sans-serif,system-ui);font-size:clamp(28px,6vw,72px);line-height:1.1;letter-spacing:-0.02em;text-wrap:balance;text-align:${isTitle ? 'center' : 'left'};color:var(--gds-text-primary);animation: fadeInUp 600ms ease both}
-.content{flex:1;display:flex;align-items:flex-start}
-.content ul{margin:2vh 0 0 1.25rem;padding:0;list-style:disc;color:var(--gds-text-secondary)}
-.content li{margin:0.4em 0;font-size:clamp(14px,2.2vw,22px);opacity:0;animation: fadeIn 700ms ease forwards;}
-.content li:nth-child(1){animation-delay:100ms}
-.content li:nth-child(2){animation-delay:200ms}
-.content li:nth-child(3){animation-delay:300ms}
-.content li:nth-child(4){animation-delay:400ms}
-.content li:nth-child(5){animation-delay:500ms}
-@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-@keyframes bgfloat{from{transform:translate3d(0,0,0)}to{transform:translate3d(4%,3%,0)}}
-`;
-
-    const js = `// Reserved for interactive slides. Access theme via CSS variables (e.g., var(--gds-accent-primary)).`;
-
-    const recipe = {
-      slide_id: s.slide_id,
-      layout_type,
-      background,
-      elements,
-      code: { html: htmlParts.join('\n'), css, js },
-    };
-
-    yield { type: 'recipe', recipe };
+    // Final progress
+    yield { type: 'progress', message: 'Finalizing presentation…' };
+  } catch (error) {
+    // Bubble error to caller to decide how to present to the user
+    throw error;
   }
 }
