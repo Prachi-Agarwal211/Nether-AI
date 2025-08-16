@@ -30,13 +30,13 @@ function createStreamingResponse(iterator) {
 // The new route.js file, which is much simpler
 export async function POST(req) {
   try {
-    // Ensure Gemini API key is configured (prefer server-side var)
+    const { action, payload } = await req.json();
+    // Ensure Gemini API key is configured (prefer server-side var) for non-streaming actions only
     const GEMINI_KEY = process.env.GOOGLE_GEMINI_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_GEMINI_API_KEY;
-    if (!GEMINI_KEY) {
+    if (!GEMINI_KEY && action !== 'generate_recipes_stream') {
       return NextResponse.json({ error: 'Missing GOOGLE_GEMINI_API_KEY. Please set GOOGLE_GEMINI_API_KEY (recommended) or NEXT_PUBLIC_GOOGLE_GEMINI_API_KEY in your .env.local.' }, { status: 500 });
     }
 
-    const { action, payload } = await req.json();
     let result;
 
     if (action === 'generate_recipes_stream') {

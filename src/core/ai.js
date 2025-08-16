@@ -766,7 +766,7 @@ export async function* generateSlideRecipesStream(blueprint) {
       return;
     }
 
-    // Fire all slide jobs in parallel; no fallbacks
+    // Fire all slide jobs in parallel; provide graceful fallbacks on failure
     const pending = new Map(); // index -> promise
     for (let i = 0; i < total; i++) {
       const s = slides[i];
@@ -787,7 +787,13 @@ export async function* generateSlideRecipesStream(blueprint) {
           };
           return { index: i, title: s.slide_title, recipe };
         } catch (err) {
-          return { index: i, title: s.slide_title, error: err?.message || 'AI generation error' };
+          // Graceful fallback: synthesize a simple slide so the user sees progress
+          try {
+            const fallback = createFallbackRecipe(s, theme_runtime);
+            return { index: i, title: s.slide_title, recipe: fallback };
+          } catch(_) {
+            return { index: i, title: s.slide_title, error: err?.message || 'AI generation error' };
+          }
         }
       })();
       // Wrap to carry index through Promise.race

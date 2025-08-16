@@ -1,95 +1,11 @@
+// src/app/dashboard/deck-view.js
 'use client';
 
-// DeckView per MASTER_PLAN Section 4.3
 import { useAppStore } from '@/utils/zustand-store';
 import { SlideRenderer } from '@/components/slide-renderer';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import ThemeProvider from '@/components/ThemeProvider';
-
-// Advanced animation that synthesizes pseudo-code from the actual blueprint
-const AiIsGeneratingAnimation = ({ blueprint }) => {
-  const [visibleLines, setVisibleLines] = useState([]);
-
-  useEffect(() => {
-    if (!blueprint || !Array.isArray(blueprint.slides)) return;
-
-    const esc = (s) => (s || '').replace(/'/g, "\\'");
-    const lines = [];
-    lines.push(`// Initializing presentation: "${esc(blueprint.topic || 'Untitled')}"`);
-    lines.push(`import { Presentation, Slide, Layout } from 'nether-ai-engine';`);
-    lines.push('');
-    lines.push('const presentation = new Presentation({');
-    lines.push(`  theme: '${esc(blueprint.theme?.name || 'DynamicTheme')}',`);
-    lines.push('});');
-    lines.push('');
-
-    blueprint.slides.forEach((slide, idx) => {
-      const n = idx + 1;
-      const title = esc(slide.slide_title || `Slide ${n}`);
-      lines.push(`// Generating Slide ${n}: ${title}`);
-      lines.push(`const slide${n} = new Slide(Layout.TitleAndContent);`);
-      lines.push(`slide${n}.addTitle('${title}');`);
-      if (Array.isArray(slide.content_points) && slide.content_points.length) {
-        const pts = slide.content_points.map((p) => `'${esc(p)}'`).join(', ');
-        lines.push(`slide${n}.addBullets([${pts}]);`);
-      }
-      if (slide.visual_suggestion?.description) {
-        lines.push(`slide${n}.addVisual({ type: 'image', prompt: '${esc(slide.visual_suggestion.description)}' });`);
-      }
-      lines.push(`presentation.add(slide${n});`);
-      lines.push('');
-    });
-
-    lines.push('// Finalizing...');
-    lines.push('presentation.render();');
-
-    // typing animation
-    let lineIndex = 0;
-    let charIndex = 0;
-    setVisibleLines([]);
-    const interval = setInterval(() => {
-      if (lineIndex < lines.length) {
-        const line = lines[lineIndex];
-        setVisibleLines((prev) => {
-          const next = [...prev];
-          if (!next[lineIndex]) next[lineIndex] = '';
-          next[lineIndex] += line[charIndex] || '';
-          return next;
-        });
-        charIndex++;
-        if (charIndex >= line.length) {
-          lineIndex++;
-          charIndex = 0;
-        }
-      } else {
-        clearInterval(interval);
-      }
-    }, 35);
-
-    return () => clearInterval(interval);
-  }, [blueprint]);
-
-  return (
-    <div className="w-full h-full bg-black/50 p-6 rounded-lg font-mono text-sm text-green-400 overflow-hidden border border-green-400/20">
-      <div className="flex items-center pb-2 mb-2 border-b border-green-400/20">
-        <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-        <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-        <span className="ml-auto text-green-400/50">/src/core/ai-presenter.js</span>
-      </div>
-      <pre className="h-full overflow-y-auto">
-        {visibleLines.map((line, index) => (
-          <div key={index}>
-            <span className="text-green-400/30 mr-2 select-none">{index + 1}</span>
-            {line}
-            {index === visibleLines.length - 1 && <span className="animate-pulse">|</span>}
-          </div>
-        ))}
-      </pre>
-    </div>
-  );
-};
 
 // Single-panel code view that shows actual generated HTML/CSS/JS when available; falls back to pseudo-code
 const CodePanel = ({ slide, blueprint }) => {
@@ -157,6 +73,7 @@ const CodePanel = ({ slide, blueprint }) => {
   );
 };
 
+
 export default function DeckView() {
   const { presentation, isLoading, error, exportToPPTX, setActiveSlideIndex } = useAppStore((s) => ({
     presentation: s.presentation,
@@ -172,29 +89,10 @@ export default function DeckView() {
   
   const [exportError, setExportError] = useState(null);
   const [showGrid, setShowGrid] = useState(false);
-  const [subView, setSubView] = useState('preview'); // 'preview' | 'code' | 'split'
+  // Simplified: only 'preview' and 'code'
+  const [subView, setSubView] = useState('preview'); // 'preview' | 'code'
   const [slideError, setSlideError] = useState(null);
 
-  // Restore persisted UI prefs
-  useEffect(() => {
-    try {
-      const sv = localStorage.getItem('deck.subView');
-      const sg = localStorage.getItem('deck.showGrid');
-      if (sv === 'preview' || sv === 'code' || sv === 'split') setSubView(sv);
-      else setSubView('code'); // default-to-code
-      if (sg != null) setShowGrid(sg === 'true');
-    } catch (_) {}
-  }, []);
-
-  // Persist changes
-  useEffect(() => {
-    try { localStorage.setItem('deck.subView', subView); } catch (_) {}
-  }, [subView]);
-  useEffect(() => {
-    try { localStorage.setItem('deck.showGrid', String(showGrid)); } catch (_) {}
-  }, [showGrid]);
-  
-  // Keyboard navigation and view toggles
   useEffect(() => {
     const onKey = (e) => {
       if (!recipes || !recipes.length) return;
@@ -205,7 +103,6 @@ export default function DeckView() {
         e.preventDefault();
         setActiveSlideIndex(Math.max(activeIndex - 1, 0));
       } else if (e.key.toLowerCase() === 'c') {
-        // Toggle code/preview quickly
         e.preventDefault();
         setSubView((v) => v === 'code' ? 'preview' : 'code');
       }
@@ -214,13 +111,11 @@ export default function DeckView() {
     return () => window.removeEventListener('keydown', onKey);
   }, [activeIndex, recipes, setActiveSlideIndex]);
 
-  // Listen for iframe error messages
   useEffect(() => {
     const onMsg = (e) => {
       const d = e?.data;
       if (d && d.type === 'slide_error') {
         setSlideError(d.message || 'Slide error');
-        // Auto-clear after a while
         window.clearTimeout(onMsg.__t);
         onMsg.__t = window.setTimeout(() => setSlideError(null), 6000);
       }
@@ -240,15 +135,43 @@ export default function DeckView() {
       await exportToPPTX();
     } catch (error) {
       setExportError(error.message);
-      setTimeout(() => setExportError(null), 5000); // Clear error after 5 seconds
+      setTimeout(() => setExportError(null), 5000);
     }
+  };
+
+  // Stage-and-Scale wrapper: centers a 1280x720 slide and scales to fit available space
+  const Stage = ({ children }) => {
+    const containerRef = useRef(null);
+    const [scale, setScale] = useState(1);
+    const BASE_W = 1280;
+    const BASE_H = 720;
+
+    useEffect(() => {
+      if (!containerRef.current) return;
+      const el = containerRef.current;
+      const ro = new ResizeObserver(([entry]) => {
+        const cr = entry.contentRect;
+        const s = Math.max(0.1, Math.min(cr.width / BASE_W, cr.height / BASE_H));
+        setScale(s);
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
+    }, []);
+
+    return (
+      <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
+        <div style={{ width: BASE_W, height: BASE_H, transform: `scale(${scale})`, transformOrigin: 'center center' }}>
+          {children}
+        </div>
+      </div>
+    );
   };
 
   const renderDeckContent = () => {
     if (isLoading) {
       return (
-        <div className="aspect-video bg-black/30 border border-white/10 rounded block">
-          <AiIsGeneratingAnimation blueprint={blueprint} />
+        <div className="aspect-video bg-black/30 border border-white/10 rounded-lg">
+          {/* Loading animation can be placed here */}
         </div>
       );
     }
@@ -256,45 +179,24 @@ export default function DeckView() {
       return (
         <div className="aspect-video bg-black/30 rounded-lg flex items-center justify-center text-white/70">
           <div>
-            <h3 className="text-xl font-semibold mb-2">Generation Complete</h3>
-            <p>Your presentation is ready. Use the thumbnails on the left to navigate.</p>
+            <h3 className="text-xl font-semibold mb-2">Presentation Ready</h3>
+            <p>Use the thumbnails on the left to navigate your slides.</p>
           </div>
         </div>
       );
     }
+    
     const current = recipes[activeIndex];
+
     if (subView === 'code') {
       return (
-        <div className="aspect-video bg-black/30 border border-white/10 rounded block p-3">
+        <div className="aspect-video bg-black/30 border border-white/10 rounded-lg p-3">
           <CodePanel slide={current} blueprint={blueprint} />
         </div>
       );
     }
-    if (subView === 'split') {
-      return (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-          <div className="aspect-video bg-black/30 border border-white/10 rounded block">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={current?.slide_id || activeIndex}
-                initial={{ opacity: 0, x: 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
-                className="w-full h-full"
-              >
-                <ThemeProvider className="w-full h-full">
-                  <SlideRenderer recipe={{ ...current, theme_runtime: themeRuntime }} showGrid={showGrid} />
-                </ThemeProvider>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-          <div className="aspect-video bg-black/30 border border-white/10 rounded block p-3">
-            <CodePanel slide={current} blueprint={blueprint} />
-          </div>
-        </div>
-      );
-    }
+
+    // Default to the main preview canvas.
     return (
       <AnimatePresence mode="wait">
         <motion.div
@@ -305,8 +207,10 @@ export default function DeckView() {
           transition={{ duration: 0.25, ease: 'easeOut' }}
           className="aspect-video"
         >
-          <ThemeProvider className="w-full h-full bg-black/30 border border-white/10 rounded block">
-            <SlideRenderer recipe={{ ...current, theme_runtime: themeRuntime }} showGrid={showGrid} />
+          <ThemeProvider className="w-full h-full block overflow-hidden">
+            <Stage>
+              <SlideRenderer recipe={{ ...current, theme_runtime: themeRuntime }} showGrid={showGrid} />
+            </Stage>
           </ThemeProvider>
         </motion.div>
       </AnimatePresence>
@@ -326,33 +230,24 @@ export default function DeckView() {
           <div className="p-2 text-center text-white/70 text-sm">{typeof isLoading === 'string' ? isLoading : 'Generating slides...'}</div>
         )}
       </div>
-      <div className="lg:col-span-3 p-6">
+      <div className="lg:col-span-4 p-6 flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <div className="text-white/80">{isLoading ? (typeof isLoading === 'string' ? isLoading : 'AI is generating your presentation...') : `Slide ${activeIndex + 1} of ${recipes.length}`}</div>
           <div className="flex gap-2 items-center">
-            <div className="flex items-center gap-1 bg-black/30 border border-white/10 rounded-full p-1 mr-2">
-              <button
-                className={`px-3 py-1 text-sm rounded-full ${subView === 'preview' ? 'bg-white text-black' : 'text-white/70 hover:bg-white/10'}`}
-                onClick={() => setSubView('preview')}
-                disabled={isLoading || !recipes || recipes.length === 0}
-              >
-                Preview
-              </button>
-              <button
-                className={`px-3 py-1 text-sm rounded-full ${subView === 'code' ? 'bg-white text-black' : 'text-white/70 hover:bg-white/10'}`}
-                onClick={() => setSubView('code')}
-                disabled={isLoading || !recipes || recipes.length === 0}
-              >
-                Code
-              </button>
-              <button
-                className={`px-3 py-1 text-sm rounded-full ${subView === 'split' ? 'bg-white text-black' : 'text-white/70 hover:bg-white/10'}`}
-                onClick={() => setSubView('split')}
-                disabled={isLoading || !recipes || recipes.length === 0}
-              >
-                Split
-              </button>
-            </div>
+            <button
+              className={`px-3 py-1 text-sm rounded-full ${subView === 'preview' ? 'bg-white text-black' : 'text-white/70 hover:bg-white/10'}`}
+              onClick={() => setSubView('preview')}
+              disabled={isLoading || !recipes || recipes.length === 0}
+            >
+              Preview
+            </button>
+            <button
+              className={`px-3 py-1 text-sm rounded-full ${subView === 'code' ? 'bg-white text-black' : 'text-white/70 hover:bg-white/10'}`}
+              onClick={() => setSubView('code')}
+              disabled={isLoading || !recipes || recipes.length === 0}
+            >
+              Code
+            </button>
             <button 
               className="secondary-button"
               onClick={() => setShowGrid(v => !v)}
@@ -370,7 +265,7 @@ export default function DeckView() {
             <button className="primary-button" onClick={enterFullscreen} disabled={isLoading}>Present</button>
           </div>
         </div>
-        {/* Error displays */}
+
         {exportError && (
           <div className="mb-3 p-3 bg-red-500/10 border border-red-500/20 rounded text-red-300 text-sm">
             Export failed: {exportError}
@@ -381,12 +276,14 @@ export default function DeckView() {
             Slide error: {slideError}
           </div>
         )}
-        {renderDeckContent()}
-      </div>
-      <div className="lg:col-span-1 p-6 border-l border-white/10 bg-black/30">
-        <h3 className="text-lg font-semibold mb-2">AI Assistant (MVP)</h3>
-        <p className="text-sm text-white/70">@slideN tweaks can be added later. For now, switch slides and review.</p>
+
+        <div className="flex-1 w-full flex items-center justify-center">
+          <div className="w-full max-w-6xl">
+            {renderDeckContent()}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+ 

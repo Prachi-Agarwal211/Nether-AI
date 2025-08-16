@@ -292,7 +292,7 @@ export function SlideRenderer({ recipe, showGrid = false }) {
   const accent = recipe?.theme_runtime?.accent || '#ffe1c6';
 
   return (
-    <div className="w-full h-full p-6" style={{ background: bg, color: primary, '--color-primary': primary, '--color-secondary': secondary, '--color-accent': accent }} ref={(el) => {
+    <div className="w-full h-full" style={{ background: bg, color: primary, '--color-primary': primary, '--color-secondary': secondary, '--color-accent': accent }} ref={(el) => {
       if (!el) return;
       if (gen) {
         const ok = renderGenerativeBackground(el, gen);
@@ -301,7 +301,7 @@ export function SlideRenderer({ recipe, showGrid = false }) {
         }
       }
     }}>
-      <div className="relative w-full h-full">
+      <div className="relative w-full h-full p-6">
         {showGrid && (
           <div className="pointer-events-none absolute inset-0" aria-hidden="true"
             style={{
