@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- FUTURISTIC DESIGN SYSTEM --- */
+:root {
+  /* Pearl core */
+  --bg-primary: #0A0A0A;
+  --text-primary: #FFFFFF;
+  --text-secondary: #B0B0B0;
+  --pinkBlush: #fadadd;
+  --peachSoft: #ffe1c6;
+  --mauveLight: #ebd8e6;
+
+  /* Optional glass defaults for existing components */
+  --glass-bg: rgba(20, 14, 20, 0.35);
+  --glass-border: rgba(255, 255, 255, 0.16);
+  --glass-shadow: rgba(0, 0, 0, 0.25);
+  --glass-blur: 16px;
+}
+
+/* --- Global Styles --- */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- Mother-of-Pearl Text Utility --- */
+.mother-of-pearl-text {
+  background: linear-gradient(135deg,
+    rgba(255,255,255,0.96) 0%,
+    rgba(236,241,250,0.96) 25%,
+    rgba(220,230,238,0.96) 45%,
+    rgba(255,255,255,0.96) 60%,
+    rgba(235,242,250,0.96) 80%,
+    rgba(255,255,255,0.96) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 16px rgba(255,255,255,0.06);
+}
+
+/* --- Spotlight Cursor Effect --- */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  background: radial-gradient(
+    800px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px),
+    rgba(0, 255, 255, 0.06),
+    transparent 40%
+  );
+  z-index: 100;
+  transition: background 0.1s ease-out;
+}
+
+/* --- [RESTORED] Mother of Pearl Text Effect --- */
+@keyframes mother-of-pearl-sheen {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.mother-of-pearl-text {
+  background-image: linear-gradient(110deg, hsl(30, 40%, 95%), hsl(340, 40%, 92%), hsl(28, 56%, 90%), hsl(30, 40%, 95%));
+  background-size: 400% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: mother-of-pearl-sheen 18s ease-in-out infinite;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+/* --- [RESTORED] Pearl & Primary Button Styles --- */
+@keyframes button-sheen {
+  0% { transform: translateX(-40%) rotate(20deg); opacity: 0.0; }
+  10% { opacity: 0.7; }
+  40% { transform: translateX(140%) rotate(20deg); opacity: 0.0; }
+  100% { transform: translateX(140%) rotate(20deg); opacity: 0.0; }
+}
+
+.primary-button {
+  display: flex; align-items: center; justify-content: center;
+  padding: 0.75rem 1.5rem; font-weight: 600; border-radius: 9999px;
+  color: #665c59;
+  background-image: linear-gradient(100deg, var(--pinkBlush), var(--peachSoft), var(--mauveLight));
+  border: 1px solid rgba(255, 255, 255, 0.0);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease-in-out;
+}
+.primary-button:hover:not(:disabled) {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
+.primary-button:disabled {
+  cursor: not-allowed; opacity: 0.7; filter: grayscale(50%);
+}
+
+.pearl-button {
+  display: flex; align-items: center; justify-content: center;
+  padding: 0.75rem 1.5rem; font-weight: 600; border-radius: 9999px;
+  position: relative; overflow: hidden; color: #574c49;
+  background-image: linear-gradient(120deg, #ffe6ea, #ffe8d6 45%, #f1e3f3);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18), 0 0 22px rgba(255, 200, 205, 0.30);
+  text-shadow: 0 0 6px rgba(255,255,255,0.5);
+  transition: all 0.3s ease-in-out;
+}
+.pearl-button:hover:not(:disabled) {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22), 0 0 30px rgba(255, 205, 215, 0.45);
+  transform: translateY(-2px);
+  filter: brightness(1.12);
+}
+.pearl-button::after {
+  content: '';
+  position: absolute; top: -150%; left: -50%; width: 60%; height: 400%;
+  transform: rotate(20deg);
+  background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.45), rgba(255,255,255,0));
+  animation: button-sheen 4.5s infinite;
+  pointer-events: none;
+}
+
+/* Utility for peachSoft text */
+.text-peachSoft { color: var(--peachSoft); }
+
+.glass-button {
+  padding: 0.75rem 1.5rem; font-weight: 500; border-radius: 9999px;
+  color: var(--text-primary);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  transition: all 0.2s ease;
+}
+.glass-button:hover:not(:disabled) {
+  background: rgba(15, 22, 58, 0.6);
+  border-color: rgba(128, 178, 255, 0.3);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+}
+
+/* --- Glassmorphism Card Utility --- */
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px 0 var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-radius: 1rem;
+}
+
+/* --- Glassmorphism Scrollbars (pearl white) --- */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.35) rgba(255, 255, 255, 0.08);
+}
+
+/* WebKit (Chrome, Edge, Safari) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  backdrop-filter: blur(var(--glass-blur));
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}

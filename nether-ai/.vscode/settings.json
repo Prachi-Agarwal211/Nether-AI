@@ -1,0 +1,15 @@
+{
+  // Ensure the correct schema is used for package.json in this workspace
+  "json.schemas": [
+    {
+      "fileMatch": ["package.json"],
+      "url": "https://json.schemastore.org/package.json"
+    }
+  ],
+
+  // Treat Tailwind directives as valid and improve IntelliSense
+  "css.lint.unknownAtRules": "ignore",
+  "files.associations": {
+    "**/src/app/globals.css": "tailwindcss"
+  }
+}
