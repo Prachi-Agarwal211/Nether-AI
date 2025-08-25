@@ -17,7 +17,7 @@ const AngleSkeleton = () => (
 
 export default function IdeaView() {
   const { setLoading, setError, setActiveView } = useUIStore();
-  const { presentation, setTopic, setStrategicAngles, setChosenAngle, setBlueprint } = usePresentationStore();
+  const { presentation, setTopic, setStrategicAngles, setChosenAngle, setBlueprint, setSlideCount } = usePresentationStore();
   
   const { isLoading, error } = useUIStore();
 
@@ -28,7 +28,7 @@ export default function IdeaView() {
     }
     setLoading(true);
     try {
-      const result = await aiService.generateAngles(presentation.topic, { /* pass prefs here */ });
+      const result = await aiService.generateAngles(presentation.topic, { count: 4, pptOptimized: true });
       setStrategicAngles(result.angles);
     } catch (e) {
       setError(e.message);
@@ -70,10 +70,28 @@ export default function IdeaView() {
           placeholder="e.g., The future of renewable energy..."
           className="w-full h-24 bg-transparent text-lg text-white placeholder-white/40 resize-none outline-none p-2"
         />
-        <div className="text-right mt-2">
-          <Button onClick={handleGenerateAngles} disabled={isLoading}>
-            {isLoading ? 'Generating...' : 'Generate Angles'}
-          </Button>
+        {/* Controls row */}
+        <div className="mt-3 flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
+          <div className="flex-1">
+            <label className="block text-xs uppercase tracking-wider text-white/60 mb-2">Slide count</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={6}
+                max={30}
+                step={1}
+                value={presentation.slideCount}
+                onChange={(e) => setSlideCount(Number(e.target.value))}
+                className="w-full accent-white"
+              />
+              <div className="w-12 text-right text-sm text-white/80">{presentation.slideCount}</div>
+            </div>
+          </div>
+          <div className="md:ml-auto text-right">
+            <Button onClick={handleGenerateAngles} disabled={isLoading}>
+              {isLoading ? 'Generating…' : 'Generate 4 Angles'}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -113,6 +131,8 @@ export default function IdeaView() {
       {/* Show skeletons while loading and no angles yet */}
       {isLoading && !presentation.strategicAngles.length && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+          <AngleSkeleton />
+          <AngleSkeleton />
           <AngleSkeleton />
           <AngleSkeleton />
         </div>

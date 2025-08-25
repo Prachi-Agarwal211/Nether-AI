@@ -45,6 +45,24 @@ export async function signInWithGoogle() {
   if (error) throw error;
 }
 
+// Generic OAuth sign-in for additional providers (e.g., 'github', 'google', etc.)
+export async function signInWithOAuth(provider, redirectPath = '/dashboard') {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: window.location.origin + redirectPath },
+  });
+  if (error) throw error;
+}
+
+// Magic link / passwordless sign-in via email OTP
+export async function signInWithOtp(email, redirectPath = '/dashboard') {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin + redirectPath },
+  });
+  if (error) throw error;
+}
+
 // --- DATA ---
 
 export async function savePresentation(presentationData) {

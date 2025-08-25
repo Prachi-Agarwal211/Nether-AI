@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-const Input = React.forwardRef(({ id, label, type = 'text', className, ...props }, ref) => {
+const Input = React.forwardRef(({ id, label, type = 'text', className, error, helperText, ...props }, ref) => {
   return (
     <div className="relative">
       <input
@@ -11,10 +11,13 @@ const Input = React.forwardRef(({ id, label, type = 'text', className, ...props 
         type={type}
         ref={ref}
         placeholder=" "
+        aria-invalid={!!error}
+        aria-describedby={error ? `${id}-error` : helperText ? `${id}-helper` : undefined}
         className={`
-          block w-full appearance-none rounded-xl border border-white/20 bg-white/5 
+          block w-full appearance-none rounded-xl border bg-white/5 
           px-4 py-3 text-white placeholder-transparent transition-colors duration-300 
-          peer focus:border-peachSoft focus:outline-none focus:ring-1 focus:ring-peachSoft 
+          peer focus:outline-none focus:ring-1 
+          ${error ? 'border-red-400/70 focus:ring-red-400 focus:border-red-400/70' : 'border-white/20 focus:ring-peachSoft focus:border-peachSoft'}
           ${className || ''}
         `}
         {...props}
@@ -32,6 +35,16 @@ const Input = React.forwardRef(({ id, label, type = 'text', className, ...props 
       >
         {label}
       </label>
+      {(error || helperText) && (
+        <p
+          id={error ? `${id}-error` : `${id}-helper`}
+          className={`mt-1 text-xs ${error ? 'text-red-300' : 'text-white/60'}`}
+          role={error ? 'alert' : undefined}
+          aria-live={error ? 'assertive' : 'polite'}
+        >
+          {error || helperText}
+        </p>
+      )}
     </div>
   );
 });

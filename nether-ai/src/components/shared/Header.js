@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { motion, useScroll, useMotionValueEvent } from 'framer-motion';
+import Image from 'next/image';
 import { useUIStore } from '@/store/useUIStore';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { FaUserCircle } from 'react-icons/fa';
@@ -42,7 +43,10 @@ export default function Header() {
       className="sticky top-0 z-50 bg-black/50 backdrop-blur-xl border-b border-white/10"
    >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="text-xl font-bold mother-of-pearl-text">Nether AI</div>
+        <div className="flex items-center gap-3">
+          <Image src="/logo.png" alt="Nether AI Logo" width={48} height={48} className="opacity-100" />
+          <div className="mother-of-pearl-text font-mono uppercase tracking-widest text-sm md:text-base">NETHER AI</div>
+        </div>
         <div className="flex items-center bg-black/30 border border-white/10 rounded-lg p-1 space-x-1">
           <NavButton viewId="idea" label="1. Idea" enabled={true} />
           <NavButton viewId="outline" label="2. Outline" enabled={canViewOutline} />

@@ -47,36 +47,38 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen w-full relative">
+    <div className="h-screen w-full relative overflow-hidden">
       <VantaBackground />
       <main
         ref={containerRef}
         onMouseMove={handleMouseMove}
-        className="min-h-screen w-full flex items-center justify-center p-6 md:p-10 relative z-10"
+        className="h-full w-full flex items-center justify-center p-4 md:p-8 relative z-10"
       >
         <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           {/* Brand side */}
-          <div className="text-center lg:text-left space-y-6">
+          <div className="text-center space-y-5">
             <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur">
               <div className="size-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-sm text-white/70">Live • Beta access</span>
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold mother-of-pearl-text tracking-wide">NETHER AI</h1>
-            <div className="text-white/70 text-xl md:text-2xl font-medium">by</div>
-            <div className="flex justify-center lg:justify-start">
-              <Image src="/logo.png" alt="Nether AI Logo" width={320} height={320} priority className="opacity-100 brightness-125 contrast-110 drop-shadow-lg" />
+            <h1 className="mother-of-pearl-text font-mono uppercase leading-none text-5xl md:text-6xl tracking-[0.25em] drop-shadow-sm">NETHER AI</h1>
+            <div className="text-white/60 text-sm md:text-base">by</div>
+            <div className="flex justify-center">
+              <Image src="/logo.png" alt="Nether AI Logo" width={240} height={240} priority className="opacity-100 brightness-125 contrast-110 drop-shadow-lg" />
             </div>
-            <p className="text-white/70 text-lg md:text-xl">The future of presentation design. Generate strategic angles, blueprints, and slides in minutes.</p>
+            <p className="text-white/70 text-base md:text-lg">The future of presentation design. Generate strategic angles, blueprints, and slides in minutes.</p>
           </div>
 
           {/* Auth side */}
           <motion.div
             style={{ rotateX, rotateY, transformStyle: 'preserve-3d' }}
-            className="rounded-2xl bg-white/5 border border-white/15 backdrop-blur-xl p-6 md:p-8 shadow-2xl"
+            className={`rounded-2xl bg-white/5 border border-white/15 backdrop-blur-xl p-6 md:p-8 shadow-2xl ${
+              view === 'signUp' || view === 'forgotPassword' ? 'max-h-[85vh] overflow-auto' : 'max-h-none overflow-visible'
+            }`}
           >
             <div style={{ transform: 'translateZ(12px)' }}>
               {/* Tabs */}
-              <div className="mb-6 flex justify-center gap-2">
+              <div className="mb-4 md:mb-6 flex justify-center gap-2">
                 <button
                   type="button"
                   onClick={() => setView('signIn')}

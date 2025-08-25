@@ -22,6 +22,7 @@ export const usePresentationStore = create((set) => ({
   setStrategicAngles: (angles) => set((state) => ({ presentation: { ...state.presentation, strategicAngles: angles } })),
   setChosenAngle: (angle) => set((state) => ({ presentation: { ...state.presentation, chosenAngle: angle } })),
   setBlueprint: (blueprint) => set((state) => ({ presentation: { ...state.presentation, blueprint } })),
+  setSlideCount: (slideCount) => set((state) => ({ presentation: { ...state.presentation, slideCount } })),
   setSlideRecipes: (recipes) => set((state) => ({ presentation: { ...state.presentation, slideRecipes: recipes, activeSlideIndex: 0 } })),
   setActiveSlideIndex: (index) => set((state) => {
     const lastIndex = Math.max(0, (state.presentation.slideRecipes?.length || 1) - 1);
