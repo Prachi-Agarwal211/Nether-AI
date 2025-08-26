@@ -1,11 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUIStore } from '@/store/useUIStore';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import * as aiService from '@/services/aiService';
 import Button from '@/components/ui/Button';
+import { Paperclip } from 'lucide-react';
+import mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure the PDF.js worker to avoid build issues in Next.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
 
 const AngleSkeleton = () => (
   <div className="rounded-lg border border-white/10 bg-white/5 p-4 animate-pulse">
@@ -20,6 +26,7 @@ export default function IdeaView() {
   const { presentation, setTopic, setStrategicAngles, setChosenAngle, setBlueprint, setSlideCount } = usePresentationStore();
   
   const { isLoading, error } = useUIStore();
+  const fileInputRef = useRef(null);
 
   const handleGenerateAngles = async () => {
     if (!presentation.topic.trim()) {
@@ -51,6 +58,50 @@ export default function IdeaView() {
     }
   };
 
+  const handleFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setLoading(true);
+    setError('');
+    try {
+      let text = '';
+      if (file.type === 'application/pdf') {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          fullText += content.items.map(item => item.str).join(' ') + '\n';
+        }
+        text = fullText.trim();
+      } else if (file.name.toLowerCase().endsWith('.docx')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        text = (result.value || '').trim();
+      } else if (file.type.startsWith('text/') || file.name.toLowerCase().endsWith('.md')) {
+        text = (await file.text()).trim();
+      } else {
+        throw new Error('Unsupported file. Please use PDF, DOCX, or TXT files.');
+      }
+
+      if (!text) throw new Error('No text could be extracted from the file.');
+
+      const prefix = presentation.topic ? `${presentation.topic}\n\n--- Document Content ---\n` : '';
+      setTopic(`${prefix}${text}`);
+    } catch (e) {
+      setError(`Error parsing file: ${e.message}`);
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -58,17 +109,24 @@ export default function IdeaView() {
       transition={{ duration: 0.5, ease: 'easeOut' }}
       className="max-w-4xl mx-auto"
     >
-      <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-extrabold mb-3">Start with an Idea</h1>
-        <p className="text-lg text-white/70">Describe your presentation topic. Our AI will generate strategic angles for you.</p>
+      <div className="text-center mb-10">
+        <h1 className="font-sans font-medium text-white/90 text-3xl md:text-4xl mb-2">Start with an Idea</h1>
+        <p className="text-base text-white/70">Describe your topic or upload a document. Our AI will generate strategic angles for you.</p>
       </div>
       
-      <div className="bg-black/30 border border-white/10 rounded-xl p-4 mb-8">
+      <div className="relative bg-black/30 border border-white/10 rounded-xl p-4 mb-8">
         <textarea
           value={presentation.topic}
           onChange={(e) => setTopic(e.target.value)}
           placeholder="e.g., The future of renewable energy..."
           className="w-full h-24 bg-transparent text-lg text-white placeholder-white/40 resize-none outline-none p-2"
+        />
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          className="hidden"
+          accept=".pdf,.docx,.txt,.md"
         />
         {/* Controls row */}
         <div className="mt-3 flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
@@ -87,9 +145,18 @@ export default function IdeaView() {
               <div className="w-12 text-right text-sm text-white/80">{presentation.slideCount}</div>
             </div>
           </div>
-          <div className="md:ml-auto text-right">
+          <div className="md:ml-auto flex items-center gap-3 justify-end">
+            <button
+              type="button"
+              onClick={handleFileSelect}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/15 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 transition"
+              title="Attach document"
+              aria-label="Attach document"
+            >
+              <Paperclip size={18} />
+            </button>
             <Button onClick={handleGenerateAngles} disabled={isLoading}>
-              {isLoading ? 'Generating…' : 'Generate 4 Angles'}
+              {isLoading ? 'Generating…' : 'Generate Angles'}
             </Button>
           </div>
         </div>
@@ -115,11 +182,15 @@ export default function IdeaView() {
                 variants={{ hidden: { opacity: 0, y: 20, scale: 0.98 }, visible: { opacity: 1, y: 0, scale: 1 } }}
                 whileHover={{ y: -5, scale: 1.02 }}
                 className="glass-card p-6 flex flex-col cursor-pointer text-white"
-                onClick={() => handleChooseAngle(angle)}
+                onClick={() => !isLoading && handleChooseAngle(angle)}
               >
-                <h3 className="font-bold text-xl mb-2 mother-of-pearl-text">{angle.title}</h3>
-                <p className="text-white/80 flex-grow mb-4">{angle.description}</p>
-                <Button variant="secondary" disabled={isLoading} className="mt-auto text-white">
+                <h3 className="font-sans font-medium text-white/90 text-xl mb-3">{angle.title}</h3>
+                <ul className="space-y-2 list-inside list-disc text-white/80 flex-grow mb-6 pl-2">
+                  {(angle.key_points || []).map((point, index) => (
+                    <li key={index} className="text-sm">{point}</li>
+                  ))}
+                </ul>
+                <Button disabled={isLoading} className="mt-auto w-full justify-center">
                   Choose this Angle
                 </Button>
               </motion.div>

@@ -9,8 +9,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-geist-sans)'],
-        mono: ['var(--font-geist-mono)'],
+        sans: ['Helvetica', 'Arial', 'sans-serif'],
+        mono: ['Helvetica', 'Arial', 'sans-serif'],
       },
       colors: {
         pinkBlush: '#fadadd',

@@ -3,7 +3,7 @@
 import { useUIStore } from '@/store/useUIStore';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import * as aiService from '@/services/aiService';
-import BlueprintDisplay from './BlueprintDisplay';
+import StoryArc from './StoryArc';
 import AICopilotPanel from './AICopilotPanel';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { motion } from 'framer-motion';
@@ -62,7 +62,7 @@ export default function OutlineView() {
       <PanelGroup direction="horizontal">
         <Panel defaultSize={65} minSize={40}>
           <div className="h-full overflow-y-auto pr-6 p-4">
-            <BlueprintDisplay blueprint={presentation.blueprint} />
+            <StoryArc blueprint={presentation.blueprint} />
           </div>
         </Panel>
         <PanelResizeHandle className="w-2 bg-white/10 hover:bg-white/20 transition-colors" />

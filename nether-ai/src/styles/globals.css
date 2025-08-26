@@ -60,6 +60,9 @@ body::before {
   transition: background 0.1s ease-out;
 }
 
+/* Subtle HUD grid overlay */
+/* grid overlay removed for cleaner background */
+
 /* --- [RESTORED] Mother of Pearl Text Effect --- */
 @keyframes mother-of-pearl-sheen {
   0% { background-position: 0% 50%; }
@@ -124,6 +127,15 @@ body::before {
   background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,0.45), rgba(255,255,255,0));
   animation: button-sheen 4.5s infinite;
   pointer-events: none;
+}
+
+/* Breathing glow for key CTA */
+@keyframes breathing-glow {
+  0%, 100% { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18), 0 0 22px rgba(255, 200, 205, 0.30); }
+  50% { box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22), 0 0 35px rgba(255, 205, 215, 0.55); }
+}
+.cta-glow {
+  animation: breathing-glow 3s infinite ease-in-out;
 }
 
 /* Utility for peachSoft text */

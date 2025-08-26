@@ -62,6 +62,11 @@ export default function SlideRenderer({ recipe, animated = true }) {
     ['titleslide', 'TitleSlide'],
     ['sectionheader', 'SectionHeader'],
     ['featuregrid', 'FeatureGrid'],
+    // Graceful fallbacks for new types until dedicated components exist
+    ['agenda', 'TwoColumn'],
+    ['agendaslide', 'TwoColumn'],
+    ['keytakeaways', 'FeatureGrid'],
+    ['keytakeawaysslide', 'FeatureGrid'],
   ]);
 
   // Diagnostics: log what we see and what we have

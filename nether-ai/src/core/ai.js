@@ -34,16 +34,89 @@ async function callGoogleGemini({ system, user, json = true }) {
 
 // Logic for generating angles
 export async function generateStrategicAngles(topic, prefs = {}) {
-  const system = `You are a world-class presentation strategist. Generate 3 distinct, insightful angles for a presentation. Your output must be a single, valid JSON object with an "angles" array.`;
-  const user = `Generate 3 strategic angles for the topic: "${topic}". Preferences: Audience: ${prefs.audience || 'General'}, Tone: ${prefs.tone || 'Formal'}. Respond with JSON like: { "angles": [{ "angle_id": "...", "title": "...", "description": "...", "audience": "...", "emphasis_keywords": ["..."] }] }`;
-  
+  const system = `You are a presentation strategist who excels at simplifying topics into clear, understandable narratives. Your goal is to help a user choose a story to tell. You MUST generate 4 distinct angles. Your output must be a single, valid JSON object with an "angles" array, and nothing else.`;
+
+  const user = `
+Generate 4 strategic angles for a presentation on the topic: "${topic}".
+
+Follow these rules strictly:
+1. The angles should represent common storytelling paths: The History, The Product/Brand, The Competition/Market, The Future (adapt to the topic as needed).
+2. The "title" for each angle must be short, clear, and compelling.
+3. The "key_points" for each angle MUST be an array of 2-3 short, easy-to-understand strings. Do NOT use long paragraphs.
+
+Respond with a valid JSON object matching this exact schema example (structure only; adapt content to the topic):
+{
+  "angles": [
+    {
+      "angle_id": "angle_1_history",
+      "title": "The Innovation Story",
+      "key_points": [
+        "A concise origin-to-now journey.",
+        "Spotlight 1-2 pivotal product or idea milestones.",
+        "What changed for users or the market."
+      ]
+    },
+    {
+      "angle_id": "angle_2_brand",
+      "title": "The Power of the Brand",
+      "key_points": [
+        "What the brand stands for in one sentence.",
+        "Signature experience or community element.",
+        "Why people choose it over alternatives."
+      ]
+    },
+    {
+      "angle_id": "angle_3_market",
+      "title": "The Competitive Landscape",
+      "key_points": [
+        "Where it fits in the market.",
+        "1-2 differentiators vs competition.",
+        "Opportunity or threat to watch."
+      ]
+    },
+    {
+      "angle_id": "angle_4_future",
+      "title": "What Comes Next",
+      "key_points": [
+        "Near-term roadmap or direction.",
+        "Emerging tech or trends to leverage.",
+        "Risks and how to address them."
+      ]
+    }
+  ]
+}`;
+
   return await callGoogleGemini({ system, user, json: true });
 }
 
 // Logic for generating the blueprint
 export async function generateBlueprint(topic, angle, slideCount = 10, prefs = {}) {
-  const system = `You are a McKinsey-level presentation strategist. Create an executive-quality blueprint. Follow a strict narrative arc: Hook, Problem, Evidence, Solution, Action. Titles must be declarative statements. Bullets must be action-oriented and under 10 words. Your output must be ONLY the valid JSON matching this schema: { slides: [{ slide_id: string, slide_title: string, content_points: string[], narrative_role: "Hook"|"Problem"|"Evidence"|"Solution"|"Action" }] }`;
-  const user = JSON.stringify({ topic, angle, slide_count: slideCount, ...prefs, instructions: 'Create a compelling narrative arc. Each slide must advance the story.' });
+  const system = `You are a world-class presentation designer and storyteller. Your task is to create a complete visual and narrative blueprint for a presentation of exactly ${slideCount} slides.
+
+  RULES:
+  1.  **Structure is Mandatory:** The blueprint MUST begin with a 'Title' slide and an 'Agenda' slide, and end with a 'Closing' or 'Q&A' slide.
+  2.  **Angle-Adapted Narrative:** You MUST adapt the narrative flow of the content slides to fit the chosen angle's title: "${angle?.title || ''}".
+      - If the angle is historical (e.g., "The Innovation Story"), use a chronological flow.
+      - If the angle is persuasive (e.g., "Why We Will Win"), use a Problem/Solution flow.
+      - If the angle is explanatory (e.g., "A Guide to our Products"), use a thematic or sequential flow.
+  3.  **Visual Design is Key:** For EACH slide, you MUST specify a 'visual_element'. This tells the designer HOW to lay out the content. You are not required to suggest an image for every slide. A well-structured text layout is also a visual element.
+  4.  **Available Visual Elements:** ['TitleLayout', 'AgendaLayout', 'ThreeColumnText', 'TwoColumnTextAndImage', 'TimelineDiagram', 'HubAndSpokeDiagram', 'QuoteLayout', 'KeyStatsInfographic', 'ClosingLayout'].
+
+  Your output MUST be ONLY the valid JSON object matching this exact schema:
+  {
+    "slides": [{
+      "slide_id": "string",
+      "slide_title": "string",
+      "objective": "string",
+      "content_points": ["string"],
+      "visual_element": {
+        "type": "string",
+        "image_suggestion"?: "string"
+      }
+    }]
+  }`;
+
+  const user = `Create a blueprint for the topic: "${topic}", following the chosen angle: "${angle?.title || ''}". The presentation must have exactly ${slideCount} slides.`;
 
   const result = await callGoogleGemini({ system, user, json: true });
   return { topic, ...result };
@@ -57,25 +130,35 @@ export async function refineBlueprint(blueprint, message, chatHistory = []) {
   return await callGoogleGemini({ system, user, json: true });
 }
 
-// Internal: design a single slide layout recipe based on a blueprint slide (with generative backgrounds)
+// Internal: design a single slide layout recipe based on a blueprint slide
 async function generateLayoutRecipeForSlide(blueprint, slide) {
-  const system = `You are an avant-garde presentation designer with a flair for creating stunning, generative visuals. Your task is to design a single slide.
+  const system = `You are an elite Art Director and a witty Copywriter rolled into one. Your task is to design a single, compelling presentation slide based on a blueprint.
 
   YOUR CREATIVE PROCESS:
-  1.  **Analyze Content:** Read the slide title and bullet points to understand its purpose (e.g., intro, data, quote).
-  2.  **Choose a Layout:** Select the BEST layout from the available list: ['TitleSlide', 'TwoColumn', 'FeatureGrid', 'Quote', 'SectionHeader'].
-  3.  **Design the Background:** This is critical. You MUST design a visually interesting background.
-      a.  **Choose a Base Color:** Pick a single hex color that fits the slide's mood (e.g., a deep blue for tech, a warm orange for finance).
-      b.  **Choose a Background Recipe:** Select a style from this list: ['aurora', 'geometric', 'subtleNoise']. 'aurora' is great for intros, 'geometric' for data, and 'subtleNoise' for content.
-      c.  Combine them in the 'theme_runtime.background' object.
-  4.  **Populate Props:** Fill the 'props' for your chosen layout with the slide's content.
-  5.  **Request an Image (if needed):** If you chose a visual layout like 'TwoColumn' or 'FeatureGrid', you MUST create an 'image_request' with specific, artistic keywords.
+  1.  **Analyze Content & Objective:** Understand the core message and the 'objective' of the slide.
+  2.  **Choose the PERFECT Layout:** Select the best layout from the list to tell this part of the story: ['TitleSlide', 'TwoColumn', 'Quote', 'SectionHeader', 'FeatureGrid', 'Agenda', 'KeyTakeaways'].
+  3.  **Write Compelling Props:** Populate the 'props' for your chosen layout. This is critical.
+      - A 'TwoColumn' layout MUST have both a 'title' and 'bullets'.
+      - A 'FeatureGrid' MUST have an array of 'features', each with a 'title', 'description', and a relevant 'icon' name from this list: ['Zap', 'BarChart', 'Rocket', 'Users', 'Code', 'Shield'].
+      - A 'TitleSlide' should have a 'title' and a 'subtitle'.
+  4.  **Design a Generative Background:** Create an artistic 'theme_runtime.background' by picking a 'baseColor' (hex) and a 'recipeName' from ['aurora', 'geometric', 'subtleNoise']. 
+  5.  **Request a Supporting Image (If Needed):** For visual layouts like 'TwoColumn', you MUST create an 'image_request' with artistic, non-generic keywords. Think "cinematic, abstract, vibrant," not "business people meeting."
+  6.  **Write Speaker Notes:** You MUST provide brief, insightful 'speaker_notes' (2-3 sentences) to guide the presenter.
 
   YOUR OUTPUT MUST BE ONLY a single, valid JSON object that strictly follows this schema:
   {
-    "layout_type": string,
-    "props": { /* layout-specific properties */ },
-    "image_request"?: { "keywords": string[] },
+    "layout_type": "string",
+    "props": {
+      "title"?: "string",
+      "subtitle"?: "string",
+      "body"?: "string",
+      "bullets"?: ["string"],
+      "features"?: [{ "icon": "string", "title": "string", "description": "string" }],
+      "quote"?: "string",
+      "author"?: "string"
+    },
+    "image_request"?: { "keywords": ["string"] },
+    "speaker_notes": "string",
     "theme_runtime": {
       "background": {
         "recipeName": "aurora" | "geometric" | "subtleNoise",
@@ -87,11 +170,16 @@ async function generateLayoutRecipeForSlide(blueprint, slide) {
   const user = JSON.stringify({
     topic: blueprint.topic,
     slide_title: slide.slide_title,
+    objective: slide.objective,
     content_points: slide.content_points,
     narrative_role: slide.narrative_role,
   });
 
-  return await callGoogleGemini({ system, user, json: true });
+  const recipe = await callGoogleGemini({ system, user, json: true });
+  if (!recipe.speaker_notes) {
+    recipe.speaker_notes = 'Remember to speak clearly and engage with the audience on this slide.';
+  }
+  return recipe;
 }
 
 // Public: stream slide recipes one by one

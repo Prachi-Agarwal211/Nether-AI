@@ -61,10 +61,17 @@ export default function SignInPage() {
               <div className="size-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-sm text-white/70">Live • Beta access</span>
             </div>
-            <h1 className="mother-of-pearl-text font-mono uppercase leading-none text-5xl md:text-6xl tracking-[0.25em] drop-shadow-sm">NETHER AI</h1>
+            <h1 className="font-sans font-medium text-white/90 leading-tight text-5xl md:text-6xl tracking-normal">NETHER AI</h1>
             <div className="text-white/60 text-sm md:text-base">by</div>
             <div className="flex justify-center">
-              <Image src="/logo.png" alt="Nether AI Logo" width={240} height={240} priority className="opacity-100 brightness-125 contrast-110 drop-shadow-lg" />
+              <Image
+                src="/logo.png"
+                alt="Nether AI Logo"
+                width={240}
+                height={240}
+                priority
+                className="opacity-100 brightness-125 contrast-110 drop-shadow-lg scale-125 md:scale-150 will-change-transform pointer-events-none select-none"
+              />
             </div>
             <p className="text-white/70 text-base md:text-lg">The future of presentation design. Generate strategic angles, blueprints, and slides in minutes.</p>
           </div>

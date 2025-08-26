@@ -60,7 +60,7 @@ export default function PresenterPage({ params }) {
         <header className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-white/10 bg-white/5 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <div className="h-2.5 w-2.5 rounded-full bg-white/60 animate-pulse" />
-            <h1 className="text-sm md:text-base font-semibold mother-of-pearl-text">
+            <h1 className="text-sm md:text-base font-medium text-white/90 font-sans">
               {presentation.topic || 'Untitled Presentation'}
             </h1>
           </div>

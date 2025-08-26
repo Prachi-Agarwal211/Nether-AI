@@ -106,7 +106,7 @@ export default function AuthForm({ view = 'signIn', setView }) {
         return (
           <motion.div key="signUp" variants={formVariants} initial="hidden" animate="visible" exit="exit" className="space-y-7 md:space-y-8">
             <div className="text-center mb-1">
-              <h2 className="text-3xl font-bold tracking-tight">Create Account</h2>
+              <h2 className="text-3xl font-medium tracking-normal">Create Account</h2>
               <p className="text-white/60 text-xs mt-1">Start designing AI-powered presentations in minutes</p>
             </div>
             <div className="grid grid-cols-2 gap-6">
@@ -157,7 +157,7 @@ export default function AuthForm({ view = 'signIn', setView }) {
         return (
           <motion.div key="forgotPassword" variants={formVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6 md:space-y-7">
             <div className="text-center mb-1">
-              <h2 className="text-3xl font-bold tracking-tight">Reset password</h2>
+              <h2 className="text-3xl font-medium tracking-normal">Reset password</h2>
               <p className="text-white/60 text-xs mt-1">Enter your email and we will send you a reset link.</p>
             </div>
             <Input id="email" name="email" type="email" label="Email Address" value={formState.email} onChange={handleInputChange} error={fieldErrors.email} />
@@ -174,7 +174,7 @@ export default function AuthForm({ view = 'signIn', setView }) {
         return (
           <motion.div key="signIn" variants={formVariants} initial="hidden" animate="visible" exit="exit" className="space-y-7">
             <div className="text-center mb-1">
-              <h2 className="text-3xl font-bold tracking-tight">Sign In</h2>
+              <h2 className="text-3xl font-medium tracking-normal">Sign In</h2>
               <p className="text-white/60 text-xs mt-1">Welcome back! Please enter your details</p>
             </div>
             <Input id="email" name="email" type="email" label="Email Address" value={formState.email} onChange={handleInputChange} error={fieldErrors.email} />

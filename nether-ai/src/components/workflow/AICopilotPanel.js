@@ -36,7 +36,7 @@ export default function AICopilotPanel({ onRefine, onFinalize, isProcessing }) {
         />
         <Button onClick={handleSend} disabled={isProcessing}>Send</Button>
       </div>
-      <Button onClick={onFinalize} disabled={isProcessing} className="w-full justify-center">
+      <Button onClick={onFinalize} disabled={isProcessing} className="w-full justify-center cta-glow">
         {isProcessing ? 'Generating...' : '✨ Design Presentation'}
       </Button>
     </div>
