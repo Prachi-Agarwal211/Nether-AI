@@ -1,7 +1,6 @@
 'use client';
 
 import Header from '@/components/shared/Header';
-import Footer from '@/components/shared/Footer';
 import VantaBackground from '@/components/shared/VantaBackground';
 import { useEffect } from 'react';
 
@@ -16,13 +15,19 @@ export default function DashboardLayout({ children }) {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen">
+    // Master grid: header auto height, main fills remaining space; no page scroll
+    <div className="h-screen w-screen grid grid-rows-[auto_1fr] overflow-hidden">
       <VantaBackground />
-      <Header />
-      <main className="flex-grow container mx-auto px-4 py-8 z-10 relative">
+
+      {/* Row 1: Header */}
+      <div className="relative z-20">
+        <Header />
+      </div>
+
+      {/* Row 2: Main content */}
+      <main className="relative z-10 overflow-hidden">
         {children}
       </main>
-      <Footer />
     </div>
   );
 }

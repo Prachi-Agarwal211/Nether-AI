@@ -1,10 +1,11 @@
 'use client';
 import ThemeProvider from './ThemeProvider';
 import DeckBackground from './DeckBackground';
-import { TitleSlide, TwoColumn, Quote, SectionHeader, FeatureGrid } from './layouts';
+import { TitleSlide, TwoColumn, Quote, SectionHeader, FeatureGrid, ProcessDiagram, DataChart, Timeline, ComparisonTable, TeamMembers, FallbackLayout as RegistryFallbackLayout, Agenda } from './layouts';
+import { usePresentationStore } from '@/store/usePresentationStore';
 
 // Explicit registry avoids tree-shaking removing components accessed dynamically
-const Layouts = { TitleSlide, TwoColumn, Quote, SectionHeader, FeatureGrid };
+const Layouts = { TitleSlide, TwoColumn, Quote, SectionHeader, FeatureGrid, ProcessDiagram, DataChart, Timeline, ComparisonTable, TeamMembers, Agenda, FallbackLayout: RegistryFallbackLayout };
 
 // Map AI prop synonyms into what our layouts expect
 function normalizeRecipeProps(props = {}) {
@@ -27,6 +28,8 @@ const FallbackLayout = ({ recipe }) => (
 
 export default function SlideRenderer({ recipe, animated = true }) {
   if (!recipe) return <div className="w-full h-full bg-black" />;
+  const { presentation } = usePresentationStore();
+  const designSystem = presentation?.designSystem;
 
   const raw = String(recipe.layout_type || '').trim();
   // Normalize: collapse non-alphanumerics to underscores
@@ -51,22 +54,60 @@ export default function SlideRenderer({ recipe, animated = true }) {
 
   // Alias map (keys normalized to lower + stripped non-alphanum)
   const aliasMap = new Map([
+    // Title aliases
+    ['title', 'TitleSlide'],
+    ['titleslide', 'TitleSlide'],
+    ['titlelayout', 'TitleSlide'],
+
+    // TwoColumn aliases
     ['twocolumn', 'TwoColumn'],
     ['twocolumnslide', 'TwoColumn'],
     ['twocolumns', 'TwoColumn'],
     ['twocolumnsslide', 'TwoColumn'],
     ['two_column', 'TwoColumn'],
     ['two_columns', 'TwoColumn'],
+    ['twocolumntextandimage', 'TwoColumn'],
+    ['two_column_text_and_image', 'TwoColumn'],
+    ['threecolumntext', 'TwoColumn'],
+
+    // Agenda -> dedicated Agenda component
+    ['agenda', 'Agenda'],
+    ['agendaslide', 'Agenda'],
+    ['agendalayout', 'Agenda'],
+
+    // Quote
     ['quoteslide', 'Quote'],
     ['quote', 'Quote'],
-    ['titleslide', 'TitleSlide'],
+    ['quotelayout', 'Quote'],
+
+    // Section header
     ['sectionheader', 'SectionHeader'],
+
+    // Feature grid / hub & spoke
     ['featuregrid', 'FeatureGrid'],
-    // Graceful fallbacks for new types until dedicated components exist
-    ['agenda', 'TwoColumn'],
-    ['agendaslide', 'TwoColumn'],
-    ['keytakeaways', 'FeatureGrid'],
-    ['keytakeawaysslide', 'FeatureGrid'],
+    ['hubandspokediagram', 'FeatureGrid'],
+
+    // Process / timeline
+    ['processdiagram', 'ProcessDiagram'],
+    ['process_diagram', 'ProcessDiagram'],
+    ['timelinediagram', 'Timeline'],
+    ['timeline', 'Timeline'],
+    ['timelineslide', 'Timeline'],
+
+    // Comparison
+    ['comparison', 'ComparisonTable'],
+    ['comparisontable', 'ComparisonTable'],
+
+    // Team
+    ['team', 'TeamMembers'],
+    ['teammembers', 'TeamMembers'],
+
+    // Charts / stats
+    ['datachart', 'DataChart'],
+    ['keystatsinfographic', 'DataChart'],
+
+    // Closing often equals a title-like slide
+    ['closinglayout', 'TitleSlide'],
   ]);
 
   // Diagnostics: log what we see and what we have
@@ -108,9 +149,9 @@ export default function SlideRenderer({ recipe, animated = true }) {
   }
 
   return (
-    <ThemeProvider theme={recipe.theme_runtime}>
+    <ThemeProvider theme={recipe.theme_runtime} designSystem={designSystem}>
       <div className="relative w-full h-full overflow-hidden">
-        <DeckBackground background={recipe?.theme_runtime?.background} animated={animated} />
+        <DeckBackground background={recipe?.theme_runtime?.background} backgroundVariant={recipe?.backgroundVariant} animated={animated} />
         <div className="relative z-10 w-full h-full">
           <LayoutComponent {...normalizeRecipeProps(recipe.props)} recipe={recipe} animated={animated} />
         </div>

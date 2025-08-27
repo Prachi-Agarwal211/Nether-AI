@@ -10,7 +10,7 @@ import { motion } from 'framer-motion';
 
 export default function OutlineView() {
   const { isLoading, setLoading, setError, setActiveView } = useUIStore();
-  const { presentation, setBlueprint, setSlideRecipes } = usePresentationStore();
+  const { presentation, setBlueprint, setSlideRecipes, setDesignSystem, setPresentation } = usePresentationStore();
 
   const handleRefineBlueprint = async (message, chatHistory) => {
     setLoading(true);
@@ -27,20 +27,46 @@ export default function OutlineView() {
   const handleDesignPresentation = async () => {
     setLoading(true);
     setActiveView('deck'); // Optimistically show deck while slides stream in
-
-    const progressive = [];
+    const slideCount = presentation?.blueprint?.slides?.length || 0;
+    // Pre-fill placeholders to guarantee array length for the UI
+    setSlideRecipes(Array(slideCount).fill(null));
 
     await aiService.generateSlideRecipesStream({
       blueprint: presentation.blueprint,
-      onRecipe: (recipe, index) => {
-        progressive[index] = recipe;
-        setSlideRecipes([...progressive]);
-      },
-      onError: (msg) => {
-        setError(msg);
+      topic: presentation.topic,
+      angle: presentation.chosenAngle,
+      onEvent: (event) => {
+        if (event.type === 'design_system') {
+          // store the theme/design system for use by Deck/ThemeProvider in future
+          if (setDesignSystem) setDesignSystem(event.designSystem);
+          else setPresentation({ designSystem: event.designSystem });
+        } else if (event.type === 'recipe') {
+          if (typeof event.index === 'number') {
+            // Highly reactive update using Zustand's core setState to avoid stale closures
+            usePresentationStore.setState((state) => {
+              const current = state.presentation?.slideRecipes || [];
+              const next = current && current.length ? [...current] : Array(slideCount).fill(null);
+              next[event.index] = event.recipe;
+              return {
+                presentation: {
+                  ...state.presentation,
+                  slideRecipes: next,
+                },
+              };
+            });
+          }
+        } else if (event.type === 'error') {
+          setError(event.message);
+        }
       },
       onDone: () => {
-        setSlideRecipes(progressive.filter(Boolean));
+        // Optional compaction if desired to remove null placeholders:
+        // usePresentationStore.setState((state) => ({
+        //   presentation: {
+        //     ...state.presentation,
+        //     slideRecipes: state.presentation.slideRecipes.filter(Boolean),
+        //   },
+        // }));
         setLoading(false);
       },
     });

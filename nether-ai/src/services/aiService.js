@@ -41,7 +41,10 @@ export async function refineBlueprint(blueprint, message, chatHistory) {
 
 export async function generateSlideRecipesStream({
   blueprint,
-  onRecipe, // Callback for each slide recipe that arrives
+  topic,
+  angle,
+  onEvent,  // Generic event callback: receives full event objects
+  onRecipe, // Back-compat: Callback for each slide recipe that arrives
   onError,  // Callback for any errors during the stream
   onDone,   // Callback when the stream is complete
 }) {
@@ -49,7 +52,7 @@ export async function generateSlideRecipesStream({
     const response = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'generate_recipes_stream', payload: { blueprint } }),
+      body: JSON.stringify({ action: 'generate_recipes_stream', payload: { blueprint, topic, angle } }),
     });
 
     if (!response.ok || !response.body) {
@@ -72,6 +75,9 @@ export async function generateSlideRecipesStream({
           const json = line.substring(6);
           try {
             const event = JSON.parse(json);
+            // Generic handler first
+            if (onEvent) onEvent(event);
+            // Back-compat branches
             if (event.type === 'recipe' && onRecipe) {
               onRecipe(event.recipe, event.index);
             } else if (event.type === 'error' && onError) {

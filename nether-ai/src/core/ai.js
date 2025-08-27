@@ -1,6 +1,7 @@
 // src/core/ai.js
 import { AI_CONFIG, getHeaders } from './ai-config';
 import { generateImagePublicUrl } from './image-generation';
+export { generateImagePublicUrl };
 
 // Universal helper to call the Gemini API
 async function callGoogleGemini({ system, user, json = true }) {
@@ -100,7 +101,7 @@ export async function generateBlueprint(topic, angle, slideCount = 10, prefs = {
       - If the angle is persuasive (e.g., "Why We Will Win"), use a Problem/Solution flow.
       - If the angle is explanatory (e.g., "A Guide to our Products"), use a thematic or sequential flow.
   3.  **Visual Design is Key:** For EACH slide, you MUST specify a 'visual_element'. This tells the designer HOW to lay out the content. You are not required to suggest an image for every slide. A well-structured text layout is also a visual element.
-  4.  **Available Visual Elements:** ['TitleLayout', 'AgendaLayout', 'ThreeColumnText', 'TwoColumnTextAndImage', 'TimelineDiagram', 'HubAndSpokeDiagram', 'QuoteLayout', 'KeyStatsInfographic', 'ClosingLayout'].
+  4.  **Available Visual Elements:** ['TitleSlide', 'Agenda', 'TwoColumn', 'Quote', 'SectionHeader', 'FeatureGrid', 'ProcessDiagram', 'DataChart', 'Timeline', 'ComparisonTable', 'TeamMembers'].
 
   Your output MUST be ONLY the valid JSON object matching this exact schema:
   {
@@ -130,78 +131,109 @@ export async function refineBlueprint(blueprint, message, chatHistory = []) {
   return await callGoogleGemini({ system, user, json: true });
 }
 
-// Internal: design a single slide layout recipe based on a blueprint slide
-async function generateLayoutRecipeForSlide(blueprint, slide) {
-  const system = `You are an elite Art Director and a witty Copywriter rolled into one. Your task is to design a single, compelling presentation slide based on a blueprint.
+/**
+ * [NEW FUNCTION] Stage 1: The Brand Director AI
+ * Generates a complete, cohesive design system for the entire presentation.
+ */
+export async function generateDesignSystem(topic, angle) {
+  const system = `You are a visionary Creative Director at a top-tier design agency. Your specialty is creating stunning, futuristic, and professional brand identities for presentations. Your output must be only a single, valid JSON object.`;
 
-  YOUR CREATIVE PROCESS:
-  1.  **Analyze Content & Objective:** Understand the core message and the 'objective' of the slide.
-  2.  **Choose the PERFECT Layout:** Select the best layout from the list to tell this part of the story: ['TitleSlide', 'TwoColumn', 'Quote', 'SectionHeader', 'FeatureGrid', 'Agenda', 'KeyTakeaways'].
-  3.  **Write Compelling Props:** Populate the 'props' for your chosen layout. This is critical.
-      - A 'TwoColumn' layout MUST have both a 'title' and 'bullets'.
-      - A 'FeatureGrid' MUST have an array of 'features', each with a 'title', 'description', and a relevant 'icon' name from this list: ['Zap', 'BarChart', 'Rocket', 'Users', 'Code', 'Shield'].
-      - A 'TitleSlide' should have a 'title' and a 'subtitle'.
-  4.  **Design a Generative Background:** Create an artistic 'theme_runtime.background' by picking a 'baseColor' (hex) and a 'recipeName' from ['aurora', 'geometric', 'subtleNoise']. 
-  5.  **Request a Supporting Image (If Needed):** For visual layouts like 'TwoColumn', you MUST create an 'image_request' with artistic, non-generic keywords. Think "cinematic, abstract, vibrant," not "business people meeting."
-  6.  **Write Speaker Notes:** You MUST provide brief, insightful 'speaker_notes' (2-3 sentences) to guide the presenter.
+  const user = `
+    The presentation topic is: "${topic}".
+    The chosen angle is: "${angle?.title || ''}".
 
-  YOUR OUTPUT MUST BE ONLY a single, valid JSON object that strictly follows this schema:
-  {
-    "layout_type": "string",
-    "props": {
-      "title"?: "string",
-      "subtitle"?: "string",
-      "body"?: "string",
-      "bullets"?: ["string"],
-      "features"?: [{ "icon": "string", "title": "string", "description": "string" }],
-      "quote"?: "string",
-      "author"?: "string"
-    },
-    "image_request"?: { "keywords": ["string"] },
-    "speaker_notes": "string",
-    "theme_runtime": {
-      "background": {
-        "recipeName": "aurora" | "geometric" | "subtleNoise",
-        "baseColor": "#RRGGBB"
+    Generate a complete and cohesive Design System with a 'Futuristic-Corporate' aesthetic.
+
+    - Color Palette: Must be sophisticated. Include a dark gradient for the background, vibrant primary/secondary colors for focus, and a bright accent for call-to-action elements.
+    - Typography: Choose one bold, clean font for headings (like 'Exo 2', 'Space Grotesk', 'Montserrat') and one highly readable font for body text (like 'Inter', 'Lato', 'Roboto').
+    - Style Tokens: Define properties for glassmorphism, shadows, and other visual effects. The 'glassBackgroundColor' MUST have transparency (e.g., 'rgba(255, 255, 255, 0.1)').
+
+    Return the JSON matching this exact schema (include both legacy keys and new background variants):
+    {
+      "colorPalette": {
+        "primary": "#RRGGBB",
+        "secondary": "#RRGGBB",
+        "accent": "#RRGGBB",
+        "backgroundStart": "#RRGGBB",
+        "backgroundEnd": "#RRGGBB",
+        "textPrimary": "#RRGGBB",
+        "textSecondary": "#RRGGBB"
+      },
+      "gradients": {
+        "titleGradient": "linear-gradient(90deg, [primary], [secondary])",
+        "backgroundGradient": "linear-gradient(160deg, [backgroundStart], [backgroundEnd])",
+        // NEW background variants used per-slide by the Layout Architect
+        "background_default": "linear-gradient(160deg, [backgroundStart], [backgroundEnd])",
+        "background_title": "radial-gradient(circle at top, [primary] 10%, transparent 60%), linear-gradient(160deg, [backgroundStart], [backgroundEnd])",
+        "background_subtle": "linear-gradient(180deg, rgba(0,0,0,0.3), rgba(0,0,0,0.6)), linear-gradient(160deg, [backgroundStart], [backgroundEnd])"
+      },
+      "typography": {
+        "headingFont": "string",
+        "bodyFont": "string"
+      },
+      "styleTokens": {
+        "glassBackgroundColor": "string (rgba format)",
+        "glassBorderColor": "string (rgba format)",
+        "glassBlur": "string (e.g., '12px')",
+        "cardShadow": "string (e.g., '0 10px 30px rgba(0, 0, 0, 0.4)')",
+        "borderRadius": "string (e.g., '16px')"
       }
     }
-  }`;
+  `;
 
-  const user = JSON.stringify({
-    topic: blueprint.topic,
-    slide_title: slide.slide_title,
-    objective: slide.objective,
-    content_points: slide.content_points,
-    narrative_role: slide.narrative_role,
-  });
+  return await callGoogleGemini({ system, user, json: true });
+}
 
-  const recipe = await callGoogleGemini({ system, user, json: true });
-  if (!recipe.speaker_notes) {
-    recipe.speaker_notes = 'Remember to speak clearly and engage with the audience on this slide.';
-  }
-  return recipe;
+/**
+ * [NEW & IMPROVED] Stages 2 & 3: The Content Strategist & Asset Producer
+ * Analyzes a single slide's content to choose the best layout, elaborate on the text,
+ * structure the data, and generate specific image prompts.
+ */
+export async function generateRecipeForSlide(slideBlueprint, topic, designSystem) {
+  const system = `You are a world-class Information Designer. Your SOLE task is to convert a raw slide blueprint into a structured JSON recipe. You must follow all rules and output only the JSON.`;
+
+  const user = `
+    // You MUST adhere to this global Design System.
+    "designSystem": ${JSON.stringify(designSystem || {})}
+
+    // This is the blueprint for the single slide you must design.
+    "slideBlueprint": ${JSON.stringify(slideBlueprint || {})}
+
+    // These are the only layouts you are allowed to choose from.
+    "availableLayouts": ["TitleSlide", "Agenda", "SectionHeader", "TwoColumn", "FeatureGrid", "ProcessDiagram", "DataChart", "Timeline", "ComparisonTable", "Quote"]
+
+    **CRITICAL INSTRUCTIONS:**
+    1.  **CHOOSE LAYOUT:** Select the BEST layout from 'availableLayouts' that matches the 'slideBlueprint.visual_element.type'. Be forgiving with the names (e.g., 'TitleLayout' -> 'TitleSlide', 'AgendaLayout' -> 'TwoColumn', 'ThreeColumnText' -> 'TwoColumn').
+    2.  **STRUCTURE PROPS - THIS IS MANDATORY:**
+        - Create a 'props' object for your chosen layout.
+        - The 'props.title' MUST be the 'slideBlueprint.slide_title'.
+        - You MUST process the 'slideBlueprint.content_points' and place them inside the props. For a 'TwoColumn' layout, create a 'props.bullets' array containing those points. For 'Quote', set 'props.quote' and optional 'props.author'. For 'DataChart', build a valid Chart.js config using the designSystem colors.
+    3.  **SPECIAL HANDLING FOR 'Agenda':** If you choose 'Agenda', set props.title to 'Agenda' (or the blueprint title if more specific) and put all 'slideBlueprint.content_points' into 'props.items' as a string array. Do not include image prompts.
+    4.  **CREATE IMAGE PROMPT:** If the layout is 'TwoColumn' or 'FeatureGrid', create a highly specific and artistic 'image_prompt' that is DIRECTLY related to the content of 'slideBlueprint.content_points'. Otherwise, set to null.
+    5.  **CHOOSE BACKGROUND:** Select the most fitting background variant from 'designSystem.gradients'. 'TitleSlide' should use 'background_title'.
+
+    **YOUR RESPONSE MUST BE A SINGLE VALID JSON OBJECT. EXAMPLE FOR A 'TwoColumn' SLIDE:**
+    {
+      "layout_type": "TwoColumn",
+      "backgroundVariant": "background_default",
+      "props": {
+        "title": "Black in Luxury Branding",
+        "bullets": [
+          "Pairing black with metallic accents like gold or silver immediately conveys a sense of opulence.",
+          "This strategy is a cornerstone for high-end fashion, jewelry, and luxury automotive brands.",
+          "Iconic examples include the timeless branding of Chanel, Yves Saint Laurent, and Mercedes-Benz.",
+          "Effective use of negative space is crucial to achieving a minimalist and luxurious feel."
+        ]
+      },
+      "image_prompt": "An elegant, minimalist flat lay of a black Chanel perfume bottle on a dark marble surface with subtle gold dust accents, studio lighting."
+    }
+  `;
+
+  return await callGoogleGemini({ system, user, json: true });
 }
 
 // Public: stream slide recipes one by one
-export async function* generateSlideRecipesStream(blueprint) {
-  const slides = blueprint.slides || [];
-  for (let i = 0; i < slides.length; i++) {
-    try {
-      const slideBlueprint = slides[i];
-      const recipe = await generateLayoutRecipeForSlide(blueprint, slideBlueprint);
-
-      if (recipe?.image_request?.keywords) {
-        const imageUrl = await generateImagePublicUrl({ keywords: recipe.image_request.keywords });
-        if (imageUrl) {
-          recipe.props = recipe.props || {};
-          recipe.props.imageUrl = imageUrl;
-        }
-      }
-
-      recipe.slide_id = slideBlueprint.slide_id;
-      yield { type: 'recipe', recipe, index: i };
-    } catch (error) {
-      yield { type: 'error', message: `Failed to generate slide ${i + 1}: ${error.message}`, index: i };
-    }
-  }
-}
+// Note: Orchestration for streaming slide recipes now lives in the API route
+// (src/app/api/ai/route.js) where slides are generated in parallel after the
+// design system is created. This avoids confusion and keeps ai.js focused on
+// single-call primitives.
