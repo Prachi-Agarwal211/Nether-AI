@@ -144,7 +144,7 @@ export default function DeckView() {
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-white/60 w-6 text-center">{index + 1}</span>
                         <div className="w-full aspect-video bg-black border border-white/15 rounded-md overflow-hidden relative">
-                          <div className="absolute top-0 left-0" style={{ width: '1280px', height: '720px', transform: 'scale(0.15)', transformOrigin: 'top left' }}>
+                          <div className="absolute top-0 left-0" style={{ width: '1280px', height: '720px', transform: 'scale(0.18)', transformOrigin: 'top left' }}>
                             <SlideRenderer recipe={recipe} animated={false} />
                           </div>
                         </div>

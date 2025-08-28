@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bar, Line } from 'react-chartjs-2';
 import {
@@ -17,6 +18,29 @@ import {
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
 export function DataChart({ title, chartData, animated }) {
+  const [themedChartData, setThemedChartData] = useState(null);
+
+  useEffect(() => {
+    if (chartData) {
+      const computedStyle = getComputedStyle(document.documentElement);
+      const primaryColor = computedStyle.getPropertyValue('--color-primary').trim();
+      const secondaryColor = computedStyle.getPropertyValue('--color-secondary').trim();
+      const textSecondaryColor = computedStyle.getPropertyValue('--color-textSecondary').trim();
+
+      const dataWithResolvedColors = {
+        ...chartData,
+        datasets: chartData.datasets?.map(ds => ({
+          ...ds,
+          backgroundColor: ds.backgroundColor || primaryColor,
+          borderColor: ds.borderColor || secondaryColor,
+        })) || [],
+      };
+      setThemedChartData(dataWithResolvedColors);
+    } else {
+      setThemedChartData({ labels: [], datasets: [] });
+    }
+  }, [chartData]);
+
   const options = {
     responsive: true,
     maintainAspectRatio: false,
@@ -29,15 +53,6 @@ export function DataChart({ title, chartData, animated }) {
       y: { ticks: { color: 'var(--color-textSecondary)' }, grid: { color: 'rgba(255,255,255,0.1)' } },
     },
   };
-
-  const themedChartData = chartData ? { ...chartData } : { labels: [], datasets: [] };
-  if (themedChartData.datasets) {
-    themedChartData.datasets = themedChartData.datasets.map(ds => ({
-      ...ds,
-      backgroundColor: ds.backgroundColor || 'var(--color-primary)',
-      borderColor: ds.borderColor || 'var(--color-secondary)',
-    }));
-  }
 
   const ChartComponent = chartData?.type === 'line' ? Line : Bar;
 
@@ -54,7 +69,7 @@ export function DataChart({ title, chartData, animated }) {
         </h2>
       )}
       <div className="w-full h-full max-h-[450px]">
-        <ChartComponent options={options} data={themedChartData} />
+        {themedChartData && <ChartComponent options={options} data={themedChartData} />}
       </div>
     </motion.div>
   );

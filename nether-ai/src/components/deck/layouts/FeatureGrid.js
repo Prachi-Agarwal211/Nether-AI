@@ -21,13 +21,15 @@ export function FeatureGrid({ title, features = [], animated, recipe }) {
       initial={animated ? 'hidden' : undefined}
       animate={animated ? 'visible' : undefined}
     >
-      <motion.h2
-        variants={itemVariants}
-        className="text-6xl font-extrabold mb-16 bg-clip-text text-transparent"
-        style={{ backgroundImage: `linear-gradient(90deg, ${accent1}, ${accent2})`}}
-      >
-        {title}
-      </motion.h2>
+      {title && (
+        <motion.h2
+          variants={itemVariants}
+          className="text-6xl font-extrabold mb-16 bg-clip-text text-transparent"
+          style={{ backgroundImage: `linear-gradient(90deg, ${accent1}, ${accent2})`}}
+        >
+          {title}
+        </motion.h2>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
         {(features || []).map((feature, i) => {
