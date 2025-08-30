@@ -101,7 +101,7 @@ export async function generateBlueprint(topic, angle, slideCount = 10, prefs = {
       - If the angle is persuasive (e.g., "Why We Will Win"), use a Problem/Solution flow.
       - If the angle is explanatory (e.g., "A Guide to our Products"), use a thematic or sequential flow.
   3.  **Visual Design is Key:** For EACH slide, you MUST specify a 'visual_element'. This tells the designer HOW to lay out the content. You are not required to suggest an image for every slide. A well-structured text layout is also a visual element.
-  4.  **Available Visual Elements:** ['TitleSlide', 'Agenda', 'TwoColumn', 'Quote', 'SectionHeader', 'FeatureGrid', 'ProcessDiagram', 'DataChart', 'Timeline', 'ComparisonTable', 'TeamMembers'].
+  4.  **Available Visual Elements:** ['TitleSlide', 'Agenda', 'TwoColumn', 'Quote', 'SectionHeader', 'FeatureGrid', 'ProcessDiagram', 'DataChart', 'Timeline', 'ComparisonTable', 'TeamMembers', 'KpiGrid'].
 
   Your output MUST be ONLY the valid JSON object matching this exact schema:
   {
@@ -190,42 +190,59 @@ export async function generateDesignSystem(topic, angle) {
  * structure the data, and generate specific image prompts.
  */
 export async function generateRecipeForSlide(slideBlueprint, topic, designSystem) {
-  const system = `You are a world-class Information Designer. Your SOLE task is to convert a raw slide blueprint into a structured JSON recipe. You must follow all rules and output only the JSON.`;
+  const system = `You are a world-class Information Designer and Content Strategist. Your task is to convert a raw slide blueprint into a rich, detailed, and structured JSON recipe. You MUST follow all rules and output only the valid JSON.`;
 
   const user = `
-    // You MUST adhere to this global Design System.
+    // This is the global Design System you must adhere to.
     "designSystem": ${JSON.stringify(designSystem || {})}
 
-    // This is the blueprint for the single slide you must design.
+    // This is the blueprint for the SINGLE slide you must design.
     "slideBlueprint": ${JSON.stringify(slideBlueprint || {})}
 
-    // These are the only layouts you are allowed to choose from.
-    "availableLayouts": ["TitleSlide", "Agenda", "SectionHeader", "TwoColumn", "FeatureGrid", "ProcessDiagram", "DataChart", "Timeline", "ComparisonTable", "Quote"]
+    // These are the ONLY layouts you are allowed to choose from.
+    "availableLayouts": [
+      "TitleSlide", "Agenda", "SectionHeader", "TwoColumn", "FeatureGrid", 
+      "ProcessDiagram", "DataChart", "Timeline", "ComparisonTable", "Quote", 
+      "KpiGrid", "FullBleedImageLayout", "TitleAndBulletsLayout", "ContactInfoLayout", "TeamMembers"
+    ]
 
-    **CRITICAL INSTRUCTIONS:**
-    1.  **CHOOSE LAYOUT:** Select the BEST layout from 'availableLayouts' that matches the 'slideBlueprint.visual_element.type'. Be forgiving with the names (e.g., 'TitleLayout' -> 'TitleSlide', 'AgendaLayout' -> 'TwoColumn', 'ThreeColumnText' -> 'TwoColumn').
-    2.  **STRUCTURE PROPS - THIS IS MANDATORY:**
-        - Create a 'props' object for your chosen layout.
-        - The 'props.title' MUST be the 'slideBlueprint.slide_title'.
-        - You MUST process the 'slideBlueprint.content_points' and place them inside the props. For a 'TwoColumn' layout, create a 'props.bullets' array containing those points. For 'Quote', set 'props.quote' and optional 'props.author'. For 'DataChart', build a valid Chart.js config using the designSystem colors.
-    3.  **SPECIAL HANDLING FOR 'Agenda':** If you choose 'Agenda', set props.title to 'Agenda' (or the blueprint title if more specific) and put all 'slideBlueprint.content_points' into 'props.items' as a string array. Do not include image prompts.
-    4.  **CREATE IMAGE PROMPT:** If the layout is 'TwoColumn' or 'FeatureGrid', create a highly specific and artistic 'image_prompt' that is DIRECTLY related to the content of 'slideBlueprint.content_points'. Otherwise, set to null.
-    5.  **CHOOSE BACKGROUND:** Select the most fitting background variant from 'designSystem.gradients'. 'TitleSlide' should use 'background_title'.
+    **CRITICAL INSTRUCTIONS - YOU MUST FOLLOW ALL OF THESE:**
 
-    **YOUR RESPONSE MUST BE A SINGLE VALID JSON OBJECT. EXAMPLE FOR A 'TwoColumn' SLIDE:**
+    1.  **CHOOSE THE BEST LAYOUT:** Select the MOST appropriate layout from 'availableLayouts' that fits the blueprint's intent. Use 'TitleAndBulletsLayout' for simple lists. Use 'FullBleedImageLayout' for impactful openers or section breaks with an image suggestion. Use 'ContactInfoLayout' for the final slide.
+
+    2.  **EXPAND THE CONTENT (MANDATORY):** Do not just copy the 'content_points'. You MUST elaborate on them.
+        - Write an introductory 'body' paragraph (2-3 sentences) that sets the context for the slide.
+        - The original 'content_points' should be used as a 'bullets' or 'items' array.
+
+    3.  **GENERATE SPEAKER NOTES (MANDATORY):** For EVERY slide, you MUST write 2-4 sentences of insightful 'speaker_notes'. These should contain extra details, data, or talking points not visible on the slide.
+
+    4.  **CREATE CONTEXTUAL DATA (IF APPLICABLE):** If you choose 'DataChart', 'KpiGrid', or 'ComparisonTable', you MUST generate realistic and contextually relevant data based on the slide's topic. DO NOT use generic placeholder data.
+
+    5.  **SUGGEST CONTEXTUAL ICONS (IF APPLICABLE):** If the layout is 'FeatureGrid' or 'ProcessDiagram', for each item/feature, you MUST suggest a relevant icon name from the 'lucide-react' library (e.g., "TrendingUp", "ShieldCheck", "Users"). Add it as an 'icon' property to each feature object.
+
+    6.  **CREATE ARTISTIC IMAGE PROMPTS:** If the slide requires an image ('TwoColumn', 'FullBleedImageLayout'), create a highly specific and artistic 'image_prompt'. Include style keywords (e.g., 'photorealistic, cinematic lighting', 'abstract 3D render, pastel colors'). Otherwise, set to null.
+
+    7.  **USE LAYOUT OPTIONS DYNAMICALLY:** For the 'TwoColumn' layout, randomly choose to set an 'imagePosition' property to either 'left' or 'right' to create visual variety in the presentation.
+
+    8.  **CHOOSE A BACKGROUND:** Select the most fitting background variant from 'designSystem.gradients'. Use 'background_title' for 'TitleSlide' and 'FullBleedImageLayout'. Use 'background_subtle' for text-heavy slides like 'TitleAndBulletsLayout'. Default to 'background_default' for others.
+
+    **YOUR RESPONSE MUST BE A SINGLE, VALID JSON OBJECT. NO MARKDOWN, NO COMMENTARY.**
+    
+    **EXAMPLE FOR A 'FeatureGrid' SLIDE:**
     {
-      "layout_type": "TwoColumn",
+      "layout_type": "FeatureGrid",
       "backgroundVariant": "background_default",
       "props": {
-        "title": "Black in Luxury Branding",
-        "bullets": [
-          "Pairing black with metallic accents like gold or silver immediately conveys a sense of opulence.",
-          "This strategy is a cornerstone for high-end fashion, jewelry, and luxury automotive brands.",
-          "Iconic examples include the timeless branding of Chanel, Yves Saint Laurent, and Mercedes-Benz.",
-          "Effective use of negative space is crucial to achieving a minimalist and luxurious feel."
+        "title": "Our Core Features",
+        "body": "Our platform is built on three pillars that ensure reliability, scalability, and security for all our users. Here's how each component contributes to a seamless experience.",
+        "features": [
+          { "icon": "TrendingUp", "title": "Scalable Infrastructure", "description": "Our architecture handles millions of requests, scaling automatically with user demand." },
+          { "icon": "ShieldCheck", "title": "Enterprise-Grade Security", "description": "We protect your data with end-to-end encryption and regular security audits." },
+          { "icon": "Users", "title": "Collaborative Workspace", "description": "Work together with your team in a shared, real-time environment." }
         ]
       },
-      "image_prompt": "An elegant, minimalist flat lay of a black Chanel perfume bottle on a dark marble surface with subtle gold dust accents, studio lighting."
+      "image_prompt": null,
+      "speaker_notes": "Mention that our uptime last quarter was 99.99%. Also, highlight that our security protocols are compliant with ISO 27001 standards."
     }
   `;
 

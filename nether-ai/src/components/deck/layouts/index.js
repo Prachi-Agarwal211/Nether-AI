@@ -10,6 +10,8 @@ export * from './ComparisonTable';
 export * from './TeamMembers';
 export * from './FallbackLayout';
 export * from './Agenda';
-// export * from './Comparison';
-// export * from './Timeline';
-// export * from './DataVisualization';
+export * from './KpiGrid';
+// Newly Added Layouts
+export * from './FullBleedImageLayout';
+export * from './TitleAndBulletsLayout';
+export * from './ContactInfoLayout';

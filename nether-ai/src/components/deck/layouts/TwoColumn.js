@@ -1,7 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
 
-export function TwoColumn({ title, body, bullets, imageUrl, animated }) {
+export function TwoColumn({ title, body, bullets, imageUrl, animated, imagePosition = 'right' }) {
   const leftVariants = {
     hidden: { opacity: 0, x: -30 },
     visible: { opacity: 1, x: 0, transition: { duration: 0.5, ease: 'easeOut' } }
@@ -11,9 +11,14 @@ export function TwoColumn({ title, body, bullets, imageUrl, animated }) {
     visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: 'easeOut', delay: 0.2 } }
   };
 
+  // Set order classes based on imagePosition
+  const contentOrder = imagePosition === 'left' ? 'md:order-2' : 'md:order-1';
+  const imageOrder = imagePosition === 'left' ? 'md:order-1' : 'md:order-2';
+
   return (
     <div className="w-full h-full p-16 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
       <motion.div
+        className={`${contentOrder}`}
         variants={animated ? leftVariants : undefined}
         initial={animated ? 'hidden' : undefined}
         animate={animated ? 'visible' : undefined}
@@ -32,6 +37,7 @@ export function TwoColumn({ title, body, bullets, imageUrl, animated }) {
         )}
       </motion.div>
       <motion.div
+        className={`${imageOrder}`}
         variants={animated ? rightVariants : undefined}
         initial={animated ? 'hidden' : undefined}
         animate={animated ? 'visible' : undefined}

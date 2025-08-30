@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bar, Line } from 'react-chartjs-2';
+import { Bar, Line, Pie, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,34 +10,41 @@ import {
   BarElement,
   PointElement,
   LineElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
 } from 'chart.js';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend);
 
 export function DataChart({ title, chartData, animated }) {
   const [themedChartData, setThemedChartData] = useState(null);
 
   useEffect(() => {
-    if (chartData) {
+    if (chartData && chartData.labels && chartData.datasets) {
       const computedStyle = getComputedStyle(document.documentElement);
       const primaryColor = computedStyle.getPropertyValue('--color-primary').trim();
       const secondaryColor = computedStyle.getPropertyValue('--color-secondary').trim();
-      const textSecondaryColor = computedStyle.getPropertyValue('--color-textSecondary').trim();
 
       const dataWithResolvedColors = {
         ...chartData,
         datasets: chartData.datasets?.map(ds => ({
           ...ds,
-          backgroundColor: ds.backgroundColor || primaryColor,
+          backgroundColor: ds.backgroundColor || [primaryColor, secondaryColor],
           borderColor: ds.borderColor || secondaryColor,
         })) || [],
       };
       setThemedChartData(dataWithResolvedColors);
     } else {
-      setThemedChartData({ labels: [], datasets: [] });
+      setThemedChartData({
+        labels: ['No Data'],
+        datasets: [{
+          label: 'No data available for this chart.',
+          data: [1],
+          backgroundColor: ['#444'],
+        }],
+      });
     }
   }, [chartData]);
 
@@ -54,7 +61,20 @@ export function DataChart({ title, chartData, animated }) {
     },
   };
 
-  const ChartComponent = chartData?.type === 'line' ? Line : Bar;
+  let ChartComponent;
+  switch (chartData?.type) {
+    case 'line':
+      ChartComponent = Line;
+      break;
+    case 'pie':
+      ChartComponent = Pie;
+      break;
+    case 'doughnut':
+      ChartComponent = Doughnut;
+      break;
+    default:
+      ChartComponent = Bar;
+  }
 
   return (
     <motion.div
