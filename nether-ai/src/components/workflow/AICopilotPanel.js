@@ -7,6 +7,7 @@ export default function AICopilotPanel({ onRefine, onFinalize, isProcessing }) {
   const [messages, setMessages] = useState([
     { role: 'ai', text: 'How can I refine this outline for you?' }
   ]);
+  const [theme, setTheme] = useState('Tech'); 
 
   const handleSend = () => {
     if (!input.trim() || isProcessing) return;
@@ -14,6 +15,8 @@ export default function AICopilotPanel({ onRefine, onFinalize, isProcessing }) {
     onRefine(input, [...messages, { role: 'user', text: input }]);
     setInput('');
   };
+
+  const themes = ['Tech', 'Minimalist', 'Corporate', 'Elegant'];
 
   return (
     <div className="h-full flex flex-col bg-black/20 border-r border-white/10 p-4">
@@ -36,7 +39,23 @@ export default function AICopilotPanel({ onRefine, onFinalize, isProcessing }) {
         />
         <Button onClick={handleSend} disabled={isProcessing}>Send</Button>
       </div>
-      <Button onClick={onFinalize} disabled={isProcessing} className="w-full justify-center cta-glow">
+      
+      <div className="mb-4">
+        <label htmlFor="theme-select" className="block text-xs uppercase tracking-wider text-white/60 mb-2">
+          Select a Design Theme
+        </label>
+        <select
+          id="theme-select"
+          value={theme}
+          onChange={(e) => setTheme(e.target.value)}
+          disabled={isProcessing}
+          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
+        >
+          {themes.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+      
+      <Button onClick={() => onFinalize(theme)} disabled={isProcessing} className="w-full justify-center cta-glow">
         {isProcessing ? 'Generating...' : '✨ Design Presentation'}
       </Button>
     </div>

@@ -7,11 +7,8 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import * as aiService from '@/services/aiService';
 import Button from '@/components/ui/Button';
 import { Paperclip } from 'lucide-react';
-import mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure the PDF.js worker to avoid build issues in Next.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
 
 const AngleSkeleton = () => (
   <div className="rounded-lg border border-white/10 bg-white/5 p-4 animate-pulse">
@@ -69,27 +66,21 @@ export default function IdeaView() {
     setLoading(true);
     setError('');
     try {
-      let text = '';
-      if (file.type === 'application/pdf') {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let fullText = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          fullText += content.items.map(item => item.str).join(' ') + '\n';
-        }
-        text = fullText.trim();
-      } else if (file.name.toLowerCase().endsWith('.docx')) {
-        const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        text = (result.value || '').trim();
-      } else if (file.type.startsWith('text/') || file.name.toLowerCase().endsWith('.md')) {
-        text = (await file.text()).trim();
-      } else {
-        throw new Error('Unsupported file. Please use PDF, DOCX, or TXT files.');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/parse-file', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const { error } = await response.json();
+        throw new Error(error || 'Failed to parse file.');
       }
 
+      const { text } = await response.json();
+      
       if (!text) throw new Error('No text could be extracted from the file.');
 
       const prefix = presentation.topic ? `${presentation.topic}\n\n--- Document Content ---\n` : '';

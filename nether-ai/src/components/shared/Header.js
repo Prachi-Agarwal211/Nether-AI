@@ -44,7 +44,7 @@ export default function Header() {
    >
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="Nether AI Logo" width={48} height={48} className="opacity-100" />
+          <Image src="/logo.png" alt="Nether AI Logo" width={48} height={48} priority={true} className="opacity-100" />
           <div className="font-sans font-medium text-white/90 tracking-normal text-sm md:text-base">NETHER AI</div>
         </div>
         <div className="flex items-center bg-black/30 border border-white/10 rounded-lg p-1 space-x-1">

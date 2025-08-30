@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import VantaBackground from '@/components/shared/VantaBackground';
 import Input from '@/components/ui/Input';
-import { createClient } from '@/utils/supabase-client';
+import { getClient } from '@/utils/supabase-client';
 import { useRouter } from 'next/navigation';
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = getClient();
   const containerRef = useRef(null);
   const x = useMotionValue(200);
   const y = useMotionValue(200);

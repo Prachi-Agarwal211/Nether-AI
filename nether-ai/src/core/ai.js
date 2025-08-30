@@ -135,18 +135,21 @@ export async function refineBlueprint(blueprint, message, chatHistory = []) {
  * [NEW FUNCTION] Stage 1: The Brand Director AI
  * Generates a complete, cohesive design system for the entire presentation.
  */
-export async function generateDesignSystem(topic, angle) {
-  const system = `You are a visionary Creative Director at a top-tier design agency. Your specialty is creating stunning, futuristic, and professional brand identities for presentations. Your output must be only a single, valid JSON object.`;
+export async function generateDesignSystem(topic, angle, theme = 'Tech') {
+  const system = `You are a visionary Creative Director at a top-tier design agency. Your specialty is creating stunning, professional brand identities for presentations based on a chosen theme. Your output must be only a single, valid JSON object.`;
+
+  const themeDirectives = getThemeDirectives(theme);
 
   const user = `
     The presentation topic is: "${topic}".
     The chosen angle is: "${angle?.title || ''}".
+    The chosen theme is: "${theme}".
 
-    Generate a complete and cohesive Design System with a 'Futuristic-Corporate' aesthetic.
+    Generate a complete and cohesive Design System with a '${themeDirectives.aesthetic}' aesthetic.
 
-    - Color Palette: Must be sophisticated. Include a dark gradient for the background, vibrant primary/secondary colors for focus, and a bright accent for call-to-action elements.
-    - Typography: Choose one bold, clean font for headings (like 'Exo 2', 'Space Grotesk', 'Montserrat') and one highly readable font for body text (like 'Inter', 'Lato', 'Roboto').
-    - Style Tokens: Define properties for glassmorphism, shadows, and other visual effects. The 'glassBackgroundColor' MUST have transparency (e.g., 'rgba(255, 255, 255, 0.1)').
+    - Color Palette Instructions: ${themeDirectives.colorPalette}
+    - Typography Instructions: ${themeDirectives.typography}
+    - Style Token Instructions: ${themeDirectives.styleTokens}
 
     Return the JSON matching this exact schema (include both legacy keys and new background variants):
     {
@@ -162,7 +165,6 @@ export async function generateDesignSystem(topic, angle) {
       "gradients": {
         "titleGradient": "linear-gradient(90deg, [primary], [secondary])",
         "backgroundGradient": "linear-gradient(160deg, [backgroundStart], [backgroundEnd])",
-        // NEW background variants used per-slide by the Layout Architect
         "background_default": "linear-gradient(160deg, [backgroundStart], [backgroundEnd])",
         "background_title": "radial-gradient(circle at top, [primary] 10%, transparent 60%), linear-gradient(160deg, [backgroundStart], [backgroundEnd])",
         "background_subtle": "linear-gradient(180deg, rgba(0,0,0,0.3), rgba(0,0,0,0.6)), linear-gradient(160deg, [backgroundStart], [backgroundEnd])"
@@ -182,6 +184,41 @@ export async function generateDesignSystem(topic, angle) {
   `;
 
   return await callGoogleGemini({ system, user, json: true });
+}
+
+// [NEW] Helper function for theme-specific AI instructions
+function getThemeDirectives(theme = 'Tech') {
+  switch (theme) {
+    case 'Minimalist':
+      return {
+        aesthetic: "Clean, simple, and elegant, with a focus on typography and whitespace.",
+        colorPalette: "Use a monochromatic color palette with a single accent color. The background should be a very light grey or off-white. Text should be dark grey, not pure black.",
+        typography: "Choose one highly legible sans-serif font for both headings and body, like 'Inter' or 'Helvetica Neue'. Use font weight and size to create hierarchy.",
+        styleTokens: "Minimalist design avoids heavy effects. Use flat colors. 'glassBackgroundColor' should be a nearly transparent white with a slight blur. Shadows should be subtle and soft."
+      };
+    case 'Corporate':
+      return {
+        aesthetic: "Professional, polished, and trustworthy, with a classic business-oriented color palette.",
+        colorPalette: "Generate a palette based on blues, greys, and a contrasting accent color like gold or a muted green. The background should be a subtle gradient of dark blue or grey.",
+        typography: "Choose a classic serif font for headings (e.g., 'Georgia', 'Merriweather') and a clean sans-serif for body text (e.g., 'Lato', 'Open Sans').",
+        styleTokens: "Use clean lines and solid blocks of color. 'glassBackgroundColor' should be a semi-transparent dark color. Shadows should be crisp and professional. Use a slightly larger border radius for a modern corporate feel."
+      };
+    case 'Elegant':
+      return {
+        aesthetic: "Sophisticated, refined, and luxurious.",
+        colorPalette: "Create a palette with deep, rich colors like burgundy, forest green, or royal purple, paired with cream, gold, or silver accents. The background should be a dark, moody gradient.",
+        typography: "Use a stylish serif font for headings, possibly with high contrast (e.g., 'Playfair Display', 'Lora'), and a clean, light sans-serif for body text.",
+        styleTokens: "Effects should be subtle and high-quality. 'glassBackgroundColor' could be a tinted, semi-transparent color. Shadows should be diffuse and soft. Use thin lines and delicate accents."
+      };
+    case 'Tech': // Default
+    default:
+      return {
+        aesthetic: "Modern, innovative, and futuristic, with dark backgrounds and vibrant, energetic accent colors.",
+        colorPalette: "Must be sophisticated. Include a dark gradient for the background, vibrant primary/secondary colors for focus (e.g., electric blue, magenta), and a bright accent for call-to-action elements.",
+        typography: "Choose one bold, clean font for headings (like 'Exo 2', 'Space Grotesk', 'Montserrat') and one highly readable font for body text (like 'Inter', 'Lato', 'Roboto').",
+        styleTokens: "Define properties for glassmorphism, shadows, and other visual effects. The 'glassBackgroundColor' MUST have transparency (e.g., 'rgba(255, 255, 255, 0.1)')."
+      };
+  }
 }
 
 /**
@@ -208,23 +245,16 @@ export async function generateRecipeForSlide(slideBlueprint, topic, designSystem
 
     **CRITICAL INSTRUCTIONS - YOU MUST FOLLOW ALL OF THESE:**
 
-    1.  **CHOOSE THE BEST LAYOUT:** Select the MOST appropriate layout from 'availableLayouts' that fits the blueprint's intent. Use 'TitleAndBulletsLayout' for simple lists. Use 'FullBleedImageLayout' for impactful openers or section breaks with an image suggestion. Use 'ContactInfoLayout' for the final slide.
-
-    2.  **EXPAND THE CONTENT (MANDATORY):** Do not just copy the 'content_points'. You MUST elaborate on them.
-        - Write an introductory 'body' paragraph (2-3 sentences) that sets the context for the slide.
-        - The original 'content_points' should be used as a 'bullets' or 'items' array.
-
-    3.  **GENERATE SPEAKER NOTES (MANDATORY):** For EVERY slide, you MUST write 2-4 sentences of insightful 'speaker_notes'. These should contain extra details, data, or talking points not visible on the slide.
-
+    1.  **CHOOSE THE BEST LAYOUT CREATIVELY:** Select the MOST appropriate layout from 'availableLayouts' that fits the blueprint's intent. Be creative. Don't overuse 'TitleAndBulletsLayout'. Use 'FullBleedImageLayout' for impactful openers or section breaks. Use 'ContactInfoLayout' for the final slide. Consider 'KpiGrid' for impressive numbers and 'Quote' for powerful statements.
+    2.  **EXPAND THE CONTENT (MANDATORY):** Do not just copy the 'content_points'. You MUST elaborate on them to create compelling slide content.
+        - Write an introductory 'body' paragraph (2-3 sentences) that sets the context for the slide where appropriate.
+        - The original 'content_points' should be expanded and used as a 'bullets' or 'items' array. Make the points more engaging.
+    3.  **GENERATE DIVERSE SPEAKER NOTES (MANDATORY):** For EVERY slide, you MUST write 2-4 sentences of insightful 'speaker_notes'. These should contain extra details, data, anecdotes, or talking points not visible on the slide to help the presenter.
     4.  **CREATE CONTEXTUAL DATA (IF APPLICABLE):** If you choose 'DataChart', 'KpiGrid', or 'ComparisonTable', you MUST generate realistic and contextually relevant data based on the slide's topic. DO NOT use generic placeholder data.
-
     5.  **SUGGEST CONTEXTUAL ICONS (IF APPLICABLE):** If the layout is 'FeatureGrid' or 'ProcessDiagram', for each item/feature, you MUST suggest a relevant icon name from the 'lucide-react' library (e.g., "TrendingUp", "ShieldCheck", "Users"). Add it as an 'icon' property to each feature object.
-
     6.  **CREATE ARTISTIC IMAGE PROMPTS:** If the slide requires an image ('TwoColumn', 'FullBleedImageLayout'), create a highly specific and artistic 'image_prompt'. Include style keywords (e.g., 'photorealistic, cinematic lighting', 'abstract 3D render, pastel colors'). Otherwise, set to null.
-
     7.  **USE LAYOUT OPTIONS DYNAMICALLY:** For the 'TwoColumn' layout, randomly choose to set an 'imagePosition' property to either 'left' or 'right' to create visual variety in the presentation.
-
-    8.  **CHOOSE A BACKGROUND:** Select the most fitting background variant from 'designSystem.gradients'. Use 'background_title' for 'TitleSlide' and 'FullBleedImageLayout'. Use 'background_subtle' for text-heavy slides like 'TitleAndBulletsLayout'. Default to 'background_default' for others.
+    8.  **CHOOSE A BACKGROUND INTELLIGENTLY:** Select the most fitting background variant from 'designSystem.gradients'. Use 'background_title' for 'TitleSlide' and 'FullBleedImageLayout' to make them stand out. Use 'background_subtle' for text-heavy slides like 'TitleAndBulletsLayout' or 'Agenda' to ensure readability. Default to 'background_default' for others.
 
     **YOUR RESPONSE MUST BE A SINGLE, VALID JSON OBJECT. NO MARKDOWN, NO COMMENTARY.**
     
