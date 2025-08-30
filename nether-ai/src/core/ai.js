@@ -230,23 +230,26 @@ export async function generateRecipeForSlide(slideBlueprint, topic, designSystem
   const system = `You are a world-class Information Designer and Content Strategist. Your task is to convert a raw slide blueprint into a rich, detailed, and structured JSON recipe. You MUST follow all rules and output only the valid JSON.`;
 
   const user = `
+    // This is the overall presentation topic. Use it for context.
+    "topic": "${topic}",
+
     // This is the global Design System you must adhere to.
-    "designSystem": ${JSON.stringify(designSystem || {})}
+    "designSystem": ${JSON.stringify(designSystem || {})},
 
     // This is the blueprint for the SINGLE slide you must design.
-    "slideBlueprint": ${JSON.stringify(slideBlueprint || {})}
+    "slideBlueprint": ${JSON.stringify(slideBlueprint || {})},
 
     // These are the ONLY layouts you are allowed to choose from.
     "availableLayouts": [
       "TitleSlide", "Agenda", "SectionHeader", "TwoColumn", "FeatureGrid", 
       "ProcessDiagram", "DataChart", "Timeline", "ComparisonTable", "Quote", 
       "KpiGrid", "FullBleedImageLayout", "TitleAndBulletsLayout", "ContactInfoLayout", "TeamMembers"
-    ]
+    ],
 
     **CRITICAL INSTRUCTIONS - YOU MUST FOLLOW ALL OF THESE:**
 
     1.  **CHOOSE THE BEST LAYOUT CREATIVELY:** Select the MOST appropriate layout from 'availableLayouts' that fits the blueprint's intent. Be creative. Don't overuse 'TitleAndBulletsLayout'. Use 'FullBleedImageLayout' for impactful openers or section breaks. Use 'ContactInfoLayout' for the final slide. Consider 'KpiGrid' for impressive numbers and 'Quote' for powerful statements.
-    2.  **EXPAND THE CONTENT (MANDATORY):** Do not just copy the 'content_points'. You MUST elaborate on them to create compelling slide content.
+    2.  **EXPAND THE CONTENT (MANDATORY):** Do not just copy the 'content_points'. You MUST elaborate on them to create compelling slide content based on the main "topic".
         - Write an introductory 'body' paragraph (2-3 sentences) that sets the context for the slide where appropriate.
         - The original 'content_points' should be expanded and used as a 'bullets' or 'items' array. Make the points more engaging.
     3.  **GENERATE DIVERSE SPEAKER NOTES (MANDATORY):** For EVERY slide, you MUST write 2-4 sentences of insightful 'speaker_notes'. These should contain extra details, data, anecdotes, or talking points not visible on the slide to help the presenter.
@@ -257,23 +260,6 @@ export async function generateRecipeForSlide(slideBlueprint, topic, designSystem
     8.  **CHOOSE A BACKGROUND INTELLIGENTLY:** Select the most fitting background variant from 'designSystem.gradients'. Use 'background_title' for 'TitleSlide' and 'FullBleedImageLayout' to make them stand out. Use 'background_subtle' for text-heavy slides like 'TitleAndBulletsLayout' or 'Agenda' to ensure readability. Default to 'background_default' for others.
 
     **YOUR RESPONSE MUST BE A SINGLE, VALID JSON OBJECT. NO MARKDOWN, NO COMMENTARY.**
-    
-    **EXAMPLE FOR A 'FeatureGrid' SLIDE:**
-    {
-      "layout_type": "FeatureGrid",
-      "backgroundVariant": "background_default",
-      "props": {
-        "title": "Our Core Features",
-        "body": "Our platform is built on three pillars that ensure reliability, scalability, and security for all our users. Here's how each component contributes to a seamless experience.",
-        "features": [
-          { "icon": "TrendingUp", "title": "Scalable Infrastructure", "description": "Our architecture handles millions of requests, scaling automatically with user demand." },
-          { "icon": "ShieldCheck", "title": "Enterprise-Grade Security", "description": "We protect your data with end-to-end encryption and regular security audits." },
-          { "icon": "Users", "title": "Collaborative Workspace", "description": "Work together with your team in a shared, real-time environment." }
-        ]
-      },
-      "image_prompt": null,
-      "speaker_notes": "Mention that our uptime last quarter was 99.99%. Also, highlight that our security protocols are compliant with ISO 27001 standards."
-    }
   `;
 
   return await callGoogleGemini({ system, user, json: true });

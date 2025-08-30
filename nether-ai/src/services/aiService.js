@@ -43,6 +43,7 @@ export async function generateSlideRecipesStream({
   blueprint,
   topic,
   angle,
+  theme,
   onEvent,  // Generic event callback: receives full event objects
   onRecipe, // Back-compat: Callback for each slide recipe that arrives
   onError,  // Callback for any errors during the stream
@@ -52,12 +53,16 @@ export async function generateSlideRecipesStream({
     const response = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'generate_recipes_stream', payload: { blueprint, topic, angle } }),
+      body: JSON.stringify({ 
+        action: 'generate_recipes_stream', 
+        payload: { blueprint, topic, angle, theme } 
+      }),
     });
 
     if (!response.ok || !response.body) {
       throw new Error("Failed to start slide generation stream.");
     }
+    
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
