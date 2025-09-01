@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUIStore } from '@/store/useUIStore';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import * as aiService from '@/services/aiService';
 import Button from '@/components/ui/Button';
-import { Paperclip } from 'lucide-react';
+import { Paperclip, Sparkles } from 'lucide-react';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
+import toast from 'react-hot-toast';
 
 // Configure the PDF.js worker to avoid build issues in Next.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
@@ -28,17 +29,30 @@ export default function IdeaView() {
   const { isLoading, error } = useUIStore();
   const fileInputRef = useRef(null);
 
+  // Cleanup file input on unmount
+  useEffect(() => {
+    return () => {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
+  }, []);
+
   const handleGenerateAngles = async () => {
     if (!presentation.topic.trim()) {
-      setError("Please enter a topic.");
+      const msg = "Please enter a topic.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     setLoading(true);
     try {
       const result = await aiService.generateAngles(presentation.topic, { count: 4, pptOptimized: true });
       setStrategicAngles(result.angles);
+      toast.success("Strategic angles generated successfully!");
     } catch (e) {
       setError(e.message);
+      toast.error(`Failed to generate angles: ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -51,8 +65,10 @@ export default function IdeaView() {
       const result = await aiService.generateBlueprint(presentation.topic, angle, presentation.slideCount, { /* pass prefs */ });
       setBlueprint(result);
       setActiveView('outline');
+      toast.success("Blueprint generated successfully!");
     } catch(e) {
       setError(e.message);
+      toast.error(`Failed to generate blueprint: ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -94,8 +110,10 @@ export default function IdeaView() {
 
       const prefix = presentation.topic ? `${presentation.topic}\n\n--- Document Content ---\n` : '';
       setTopic(`${prefix}${text}`);
+      toast.success("Document uploaded and processed successfully!");
     } catch (e) {
       setError(`Error parsing file: ${e.message}`);
+      toast.error(`File upload failed: ${e.message}`);
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -111,7 +129,14 @@ export default function IdeaView() {
     >
       <div className="text-center mb-10">
         <h1 className="font-sans font-medium text-white/90 text-3xl md:text-4xl mb-2">Start with an Idea</h1>
-        <p className="text-base text-white/70">Describe your topic or upload a document. Our AI will generate strategic angles for you.</p>
+        <p id="topic-description" className="text-base text-white/70">Describe your topic or upload a document. Our AI will generate strategic angles for you.</p>
+        <p id="generate-description" className="sr-only">Click to generate strategic angles for your presentation topic</p>
+        <div className="mt-6">
+          <Button onClick={() => setActiveView('templates')} variant="secondary" className="justify-center">
+            <Sparkles size={16} className="mr-2" />
+            Browse Templates
+          </Button>
+        </div>
       </div>
       
       <div className="relative bg-black/30 border border-white/10 rounded-xl p-4 mb-8">
@@ -120,6 +145,8 @@ export default function IdeaView() {
           onChange={(e) => setTopic(e.target.value)}
           placeholder="e.g., The future of renewable energy..."
           className="w-full h-24 bg-transparent text-lg text-white placeholder-white/40 resize-none outline-none p-2"
+          aria-label="Presentation topic input"
+          aria-describedby="topic-description"
         />
         <input
           type="file"
@@ -141,6 +168,10 @@ export default function IdeaView() {
                 value={presentation.slideCount}
                 onChange={(e) => setSlideCount(Number(e.target.value))}
                 className="w-full accent-white"
+                aria-label="Number of slides"
+                aria-valuemin={6}
+                aria-valuemax={30}
+                aria-valuenow={presentation.slideCount}
               />
               <div className="w-12 text-right text-sm text-white/80">{presentation.slideCount}</div>
             </div>
@@ -155,7 +186,7 @@ export default function IdeaView() {
             >
               <Paperclip size={18} />
             </button>
-            <Button onClick={handleGenerateAngles} disabled={isLoading}>
+            <Button onClick={handleGenerateAngles} disabled={isLoading} aria-describedby="generate-description">
               {isLoading ? 'Generating…' : 'Generate Angles'}
             </Button>
           </div>
@@ -183,6 +214,14 @@ export default function IdeaView() {
                 whileHover={{ y: -5, scale: 1.02 }}
                 className="glass-card p-6 flex flex-col cursor-pointer text-white"
                 onClick={() => !isLoading && handleChooseAngle(angle)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Choose angle: ${angle.title}`}
+                onKeyDown={(e) => {
+                  if ((e.key === 'Enter' || e.key === ' ') && !isLoading) {
+                    handleChooseAngle(angle);
+                  }
+                }}
               >
                 <h3 className="font-sans font-medium text-white/90 text-xl mb-3">{angle.title}</h3>
                 <ul className="space-y-2 list-inside list-disc text-white/80 flex-grow mb-6 pl-2">

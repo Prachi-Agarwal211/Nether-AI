@@ -27,14 +27,15 @@ function normalizeRecipeProps(props = {}) {
 const FallbackLayout = ({ recipe }) => (
   <div className="w-full h-full bg-red-900/50 text-white flex flex-col items-center justify-center p-8">
     <p className="font-bold">Error: Layout Not Found</p>
-    <p className="text-sm mt-2">Could not find layout: "{recipe?.layout_type}"</p>
+    <p className="text-sm mt-2">Could not find layout: &ldquo;{recipe?.layout_type}&rdquo;</p>
   </div>
 );
 
 export default function SlideRenderer({ recipe, animated = true }) {
-  if (!recipe) return <div className="w-full h-full bg-black" />;
   const { presentation } = usePresentationStore();
   const designSystem = presentation?.designSystem;
+  
+  if (!recipe) return <div className="w-full h-full bg-black" />;
 
   const raw = String(recipe.layout_type || '').trim();
   const layoutName = raw.charAt(0).toUpperCase() + raw.slice(1);

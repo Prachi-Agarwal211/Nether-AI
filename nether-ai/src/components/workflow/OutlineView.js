@@ -7,6 +7,7 @@ import StoryArc from './StoryArc';
 import AICopilotPanel from './AICopilotPanel';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 export default function OutlineView() {
   const { isLoading, setLoading, setError, setActiveView } = useUIStore();
@@ -17,8 +18,10 @@ export default function OutlineView() {
     try {
       const updatedBlueprint = await aiService.refineBlueprint(presentation.blueprint, message, chatHistory);
       setBlueprint(updatedBlueprint);
+      toast.success("Blueprint refined successfully!");
     } catch (e) {
       setError(e.message);
+      toast.error(`Failed to refine blueprint: ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -57,6 +60,7 @@ export default function OutlineView() {
           }
         } else if (event.type === 'error') {
           setError(event.message);
+          toast.error(`Slide generation error: ${event.message}`);
         }
       },
       onDone: () => {
@@ -68,6 +72,7 @@ export default function OutlineView() {
         //   },
         // }));
         setLoading(false);
+        toast.success("Presentation designed successfully!");
       },
     });
   };

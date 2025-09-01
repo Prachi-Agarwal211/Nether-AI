@@ -37,11 +37,10 @@ export function TwoColumn({ title, body, bullets, imageUrl, animated, imagePosit
         )}
       </motion.div>
       <motion.div
-        className={`${imageOrder}`}
+        className={`${imageOrder} h-64 md:h-full w-full rounded-2xl overflow-hidden bg-white/5 border border-white/10`}
         variants={animated ? rightVariants : undefined}
         initial={animated ? 'hidden' : undefined}
         animate={animated ? 'visible' : undefined}
-        className="h-64 md:h-full w-full rounded-2xl overflow-hidden bg-white/5 border border-white/10"
       >
         {imageUrl && (
           // eslint-disable-next-line @next/next/no-img-element

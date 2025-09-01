@@ -1,36 +1,66 @@
 // src/core/ai.js
 import { AI_CONFIG, getHeaders } from './ai-config';
 import { generateImagePublicUrl } from './image-generation';
+import toast from 'react-hot-toast';
 export { generateImagePublicUrl };
 
-// Universal helper to call the Gemini API
-async function callGoogleGemini({ system, user, json = true }) {
+// Universal helper to call the Gemini API with retry and error handling
+async function callGoogleGemini({ system, user, json = true }, retries = 3) {
   const url = `${AI_CONFIG.endpointBase}/models/${AI_CONFIG.model}:generateContent`;
-  
+
   const body = {
     contents: [{ role: 'user', parts: [{ text: user }] }],
     system_instruction: { parts: [{ text: system }] },
     generationConfig: { response_mime_type: json ? 'application/json' : 'text/plain' },
   };
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(AI_CONFIG.timeoutMs),
-  });
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(AI_CONFIG.timeoutMs),
+      });
 
-  if (!response.ok) {
-    let errorText = '';
-    try { errorText = await response.text(); } catch {}
-    throw new Error(`Google Gemini API error: ${response.status} ${response.statusText} ${errorText}`);
+      if (!response.ok) {
+        let errorText = '';
+        try { errorText = await response.text(); } catch {}
+        const errorMsg = `Google Gemini API error: ${response.status} ${response.statusText} ${errorText}`;
+        if (attempt === retries) {
+          toast.error(`AI request failed after ${retries} attempts: ${errorMsg}`);
+          throw new Error(errorMsg);
+        }
+        toast(`AI request failed (attempt ${attempt}/${retries}), retrying...`, { icon: '🔄' });
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+        continue;
+      }
+
+      const data = await response.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) {
+        const errorMsg = 'Empty response from AI';
+        if (attempt === retries) {
+          toast.error(errorMsg);
+          throw new Error(errorMsg);
+        }
+        continue;
+      }
+
+      if (attempt > 1) {
+        toast.success('AI request succeeded after retry');
+      }
+
+      return json ? JSON.parse(rawText) : rawText;
+    } catch (error) {
+      if (attempt === retries) {
+        toast.error(`AI request failed: ${error.message}`);
+        throw error;
+      }
+      toast(`AI request error (attempt ${attempt}/${retries}), retrying...`, { icon: '🔄' });
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+    }
   }
-
-  const data = await response.json();
-  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawText) throw new Error('Empty response from AI');
-  
-  return json ? JSON.parse(rawText) : rawText;
 }
 
 // Logic for generating angles

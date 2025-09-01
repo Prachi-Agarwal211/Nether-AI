@@ -42,7 +42,18 @@ export async function POST(req) {
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         async start(controller) {
-          const push = (event) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+          let isClosed = false;
+          const push = (event) => {
+            if (!isClosed) {
+              try {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+              } catch (error) {
+                console.error('[API] Controller enqueue error:', error);
+                isClosed = true;
+              }
+            }
+          };
+          
           try {
             // Stage 1: Brand Director — generate design system
             let designSystem = null;
@@ -99,7 +110,14 @@ export async function POST(req) {
             push({ type: 'error', message: `Stream error: ${error.message}` });
           } finally {
             console.log('[API] Closing stream.');
-            controller.close();
+            if (!isClosed) {
+              try {
+                controller.close();
+                isClosed = true;
+              } catch (error) {
+                console.error('[API] Controller close error:', error);
+              }
+            }
           }
         },
       });
