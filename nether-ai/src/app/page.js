@@ -2,7 +2,7 @@
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import AuthForm from '@/components/auth/AuthForm';
 import { useEffect, useRef, useState } from 'react';
-import { getClient } from '@/utils/supabase-client';
+import { createClient } from '@/utils/supabase-client';
 import { useRouter } from 'next/navigation';
 import VantaBackground from '@/components/shared/VantaBackground';
 import Image from 'next/image';
@@ -14,7 +14,7 @@ export default function SignInPage() {
 
   // Redirect if user is already logged in
   useEffect(() => {
-    const supabase = getClient();
+    const supabase = createClient();
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) router.push('/dashboard');
     });

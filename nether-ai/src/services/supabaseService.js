@@ -1,18 +1,18 @@
-import { getClient } from '@/utils/supabase-client';
+import { createClient } from '@/utils/supabase-client';
 
 // This service centralizes all direct communication with Supabase
 // for authentication and CRUD around presentations.
 
+const supabase = createClient();
+
 // --- AUTHENTICATION ---
 
 export async function signIn(email, password) {
-  const supabase = getClient(); 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
 }
 
 export async function signUpWithDetails(formData) {
-  const supabase = getClient(); 
   const { email, password, firstName, lastName, username, phone, dob } = formData;
   const { error } = await supabase.auth.signUp({
     email,
@@ -31,7 +31,6 @@ export async function signUpWithDetails(formData) {
 }
 
 export async function sendPasswordReset(email) {
-  const supabase = getClient(); 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}/update-password`,
   });
@@ -39,7 +38,6 @@ export async function sendPasswordReset(email) {
 }
 
 export async function signInWithGoogle() {
-  const supabase = getClient(); 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + '/dashboard' },
@@ -49,7 +47,6 @@ export async function signInWithGoogle() {
 
 // Generic OAuth sign-in for additional providers (e.g., 'github', 'google', etc.)
 export async function signInWithOAuth(provider, redirectPath = '/dashboard') {
-  const supabase = getClient(); 
   const { error } = await supabase.auth.signInWithOAuth({
     provider,
     options: { redirectTo: window.location.origin + redirectPath },
@@ -59,7 +56,6 @@ export async function signInWithOAuth(provider, redirectPath = '/dashboard') {
 
 // Magic link / passwordless sign-in via email OTP
 export async function signInWithOtp(email, redirectPath = '/dashboard') {
-  const supabase = getClient(); 
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: window.location.origin + redirectPath },
@@ -70,7 +66,6 @@ export async function signInWithOtp(email, redirectPath = '/dashboard') {
 // --- DATA ---
 
 export async function savePresentation(presentationData) {
-  const supabase = getClient(); 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Authentication required to save.");
 
@@ -95,7 +90,6 @@ export async function savePresentation(presentationData) {
 }
 
 export async function loadPresentation(id) {
-  const supabase = getClient(); 
   if (!id) throw new Error("Presentation ID is required.");
   const { data, error } = await supabase
     .from('presentations')

@@ -27,7 +27,7 @@ export function TitleSlide({ title, subtitle, animated }) {
       </Title>
       {subtitle && (
         <Subtitle
-          className="text-2xl max-w-4xl text-white/80 leading-relaxed"
+          className="text-2xl max-w-4xl text-white/80"
           variants={animated ? itemVariants : undefined}
         >
           {subtitle}

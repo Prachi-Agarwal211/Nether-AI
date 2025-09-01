@@ -1,7 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
 
-export function TwoColumn({ title, leftTitle, rightTitle, bullets = [], background, animated, imagePosition = 'right' }) {
+export function TwoColumn({ title, body, bullets, imageUrl, animated, imagePosition = 'right' }) {
   const leftVariants = {
     hidden: { opacity: 0, x: -30 },
     visible: { opacity: 1, x: 0, transition: { duration: 0.5, ease: 'easeOut' } }
@@ -24,26 +24,17 @@ export function TwoColumn({ title, leftTitle, rightTitle, bullets = [], backgrou
         animate={animated ? 'visible' : undefined}
       >
         {title && <h2 className="text-4xl md:text-5xl font-bold mb-6">{title}</h2>}
-        {leftTitle && <h2 className="text-3xl font-bold mb-6">{leftTitle}</h2>}
-        <ul className="space-y-3">
-          {bullets
-            .filter((_, i) => i % 2 === 0)
-            .map((item, index) => (
-              <li key={index} className="flex items-start">
+        {body && <p className="text-lg text-text-secondary mb-6">{body}</p>}
+        {!!(bullets && bullets.length) && (
+          <ul className="space-y-3">
+            {bullets.map((bullet, i) => (
+              <li key={i} className="flex items-start">
                 <span className="text-accent-primary mr-3 mt-1">✦</span>
-                <div>
-                  {typeof item === 'object' ? (
-                    <>
-                      <p className="font-bold">{item.title}</p>
-                      {item.description && <p className="text-lg mt-1">{item.description}</p>}
-                    </>
-                  ) : (
-                    <p>{item}</p>
-                  )}
-                </div>
+                <span className="text-text-secondary">{bullet}</span>
               </li>
             ))}
-        </ul>
+          </ul>
+        )}
       </motion.div>
       <motion.div
         className={`${imageOrder}`}
@@ -51,28 +42,11 @@ export function TwoColumn({ title, leftTitle, rightTitle, bullets = [], backgrou
         initial={animated ? 'hidden' : undefined}
         animate={animated ? 'visible' : undefined}
         className="h-64 md:h-full w-full rounded-2xl overflow-hidden bg-white/5 border border-white/10"
-        style={{ background }}
       >
-        {rightTitle && <h2 className="text-3xl font-bold mb-6">{rightTitle}</h2>}
-        <ul className="space-y-3">
-          {bullets
-            .filter((_, i) => i % 2 === 1)
-            .map((item, index) => (
-              <li key={index} className="flex items-start">
-                <span className="text-accent-primary mr-3 mt-1">✦</span>
-                <div>
-                  {typeof item === 'object' ? (
-                    <>
-                      <p className="font-bold">{item.title}</p>
-                      {item.description && <p className="text-lg mt-1">{item.description}</p>}
-                    </>
-                  ) : (
-                    <p>{item}</p>
-                  )}
-                </div>
-              </li>
-            ))}
-        </ul>
+        {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt={title || 'presentation image'} className="w-full h-full object-cover" />
+        )}
       </motion.div>
     </div>
   );

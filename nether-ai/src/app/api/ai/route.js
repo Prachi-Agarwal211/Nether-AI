@@ -37,7 +37,7 @@ export async function POST(req) {
 
     // Streaming slide recipe generation with design system first (then parallel slide recipe generation)
     if (action === 'generate_recipes_stream') {
-      const { blueprint, topic, angle, theme } = payload;
+      const { blueprint, topic, angle } = payload;
 
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
@@ -48,7 +48,7 @@ export async function POST(req) {
             let designSystem = null;
             if (topic && angle) {
               console.log('[API] Stage 1: Generating Design System...');
-              designSystem = await AiCore.generateDesignSystem(topic, angle, theme);
+              designSystem = await AiCore.generateDesignSystem(topic, angle);
               push({ type: 'design_system', designSystem });
               console.log('[API] Stage 1: Design System sent.');
             }

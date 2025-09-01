@@ -7,16 +7,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please check your .env.local file.');
 }
 
-// Singleton instance placeholder
-let supabaseClient = null;
-
-export const getClient = () => {
-  // If an instance already exists, return it
-  if (supabaseClient) {
-    return supabaseClient;
-  }
-
-  // Otherwise, create a new instance
+export const createClient = () => {
+  // Choose storage based on a user preference flag stored in localStorage.
+  // Default is "remember me" on (localStorage). If explicitly set to 'false', use sessionStorage.
   let storage;
   if (typeof window !== 'undefined') {
     try {
@@ -24,11 +17,12 @@ export const getClient = () => {
       const rememberMe = remember === null ? true : remember === 'true';
       storage = rememberMe ? window.localStorage : window.sessionStorage;
     } catch {
+      // fallback to localStorage behavior if storage access fails
       storage = undefined;
     }
   }
 
-  supabaseClient = supabaseCreateClient(supabaseUrl, supabaseAnonKey, {
+  return supabaseCreateClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
@@ -36,6 +30,4 @@ export const getClient = () => {
       ...(storage ? { storage } : {}),
     },
   });
-
-  return supabaseClient;
 };
