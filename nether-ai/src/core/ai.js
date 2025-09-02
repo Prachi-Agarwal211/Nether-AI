@@ -65,57 +65,57 @@ async function callGoogleGemini({ system, user, json = true }, retries = 3) {
 
 // Logic for generating angles
 export async function generateStrategicAngles(topic, prefs = {}) {
-  const system = `You are a presentation strategist who excels at simplifying topics into clear, understandable narratives. Your goal is to help a user choose a story to tell. You MUST generate 4 distinct angles. Your output must be a single, valid JSON object with an "angles" array, and nothing else.`;
+  const system = `You are a world-class presentation strategist and storytelling expert. You excel at identifying the most compelling narrative angles for any topic. Your goal is to help users choose the perfect story to tell by generating 4 distinct, engaging angles. Your output must be a single, valid JSON object with an "angles" array, and nothing else.`;
 
   const user = `
 Generate 4 strategic angles for a presentation on the topic: "${topic}".
 
-Follow these rules strictly:
-1. The angles should represent common storytelling paths: The History, The Product/Brand, The Competition/Market, The Future (adapt to the topic as needed).
-2. The "title" for each angle must be short, clear, and compelling.
-3. The "key_points" for each angle MUST be an array of 2-3 short, easy-to-understand strings. Do NOT use long paragraphs.
+**ANGLE SELECTION STRATEGY:**
+Choose 4 diverse angles from these proven storytelling frameworks, adapting them to fit the topic:
 
-Respond with a valid JSON object matching this exact schema example (structure only; adapt content to the topic):
+**Business/Product Topics:**
+- "The Innovation Journey" (origin story, evolution, breakthroughs)
+- "The Competitive Edge" (market position, differentiators, advantages)
+- "The User Impact" (customer success, transformation, value delivered)
+- "The Future Vision" (roadmap, emerging trends, next chapter)
+
+**Educational/Informational Topics:**
+- "The Foundation" (core concepts, principles, building blocks)
+- "The Real-World Application" (practical uses, case studies, examples)
+- "The Common Challenges" (problems solved, obstacles overcome)
+- "The Expert Insights" (advanced techniques, best practices, pro tips)
+
+**Industry/Market Topics:**
+- "The Current Landscape" (market overview, key players, trends)
+- "The Transformation Story" (how things have changed, disruption)
+- "The Opportunities Ahead" (growth areas, emerging markets, potential)
+- "The Strategic Approach" (how to succeed, winning strategies)
+
+**REQUIREMENTS:**
+1. Each angle must have a compelling, action-oriented title (4-8 words max)
+2. Each angle must include 3 specific, concrete key points (not generic statements)
+3. Angles should appeal to different audience interests and learning styles
+4. Include visual storytelling potential in your angle selection
+5. Ensure angles can support 8-12 slides of rich content each
+
+**ENHANCED SCHEMA WITH VISUAL HINTS:**
 {
   "angles": [
     {
-      "angle_id": "angle_1_history",
-      "title": "The Innovation Story",
+      "angle_id": "angle_1_[category]",
+      "title": "Compelling Action-Oriented Title",
       "key_points": [
-        "A concise origin-to-now journey.",
-        "Spotlight 1-2 pivotal product or idea milestones.",
-        "What changed for users or the market."
-      ]
-    },
-    {
-      "angle_id": "angle_2_brand",
-      "title": "The Power of the Brand",
-      "key_points": [
-        "What the brand stands for in one sentence.",
-        "Signature experience or community element.",
-        "Why people choose it over alternatives."
-      ]
-    },
-    {
-      "angle_id": "angle_3_market",
-      "title": "The Competitive Landscape",
-      "key_points": [
-        "Where it fits in the market.",
-        "1-2 differentiators vs competition.",
-        "Opportunity or threat to watch."
-      ]
-    },
-    {
-      "angle_id": "angle_4_future",
-      "title": "What Comes Next",
-      "key_points": [
-        "Near-term roadmap or direction.",
-        "Emerging tech or trends to leverage.",
-        "Risks and how to address them."
-      ]
+        "Specific, concrete point with measurable impact",
+        "Unique insight or surprising fact about the topic",
+        "Clear benefit or outcome for the audience"
+      ],
+      "visual_theme": "suggested visual approach (e.g., 'timeline', 'comparison', 'process', 'data-driven')",
+      "audience_appeal": "primary audience motivation (e.g., 'decision-makers', 'technical-experts', 'general-audience')"
     }
   ]
-}`;
+}
+
+Make each angle distinctly different in approach, ensuring the user has genuinely diverse storytelling options.`;
 
   return await callGoogleGemini({ system, user, json: true });
 }
@@ -125,13 +125,14 @@ export async function generateBlueprint(topic, angle, slideCount = 10, prefs = {
   const system = `You are a world-class presentation designer and storyteller. Your task is to create a complete visual and narrative blueprint for a presentation of exactly ${slideCount} slides.
 
   RULES:
-  1.  **Structure is Mandatory:** The blueprint MUST begin with a 'Title' slide and an 'Agenda' slide, and end with a 'Closing' or 'Q&A' slide.
+  1.  **Structure is Mandatory:** The blueprint MUST begin with a 'Title' slide (slide 1) and an 'Agenda' slide (slide 2), and end with a 'Closing', 'Thank You', or 'Q&A' slide. This structure is non-negotiable.
   2.  **Angle-Adapted Narrative:** You MUST adapt the narrative flow of the content slides to fit the chosen angle's title: "${angle?.title || ''}".
       - If the angle is historical (e.g., "The Innovation Story"), use a chronological flow.
       - If the angle is persuasive (e.g., "Why We Will Win"), use a Problem/Solution flow.
       - If the angle is explanatory (e.g., "A Guide to our Products"), use a thematic or sequential flow.
-  3.  **Visual Design is Key:** For EACH slide, you MUST specify a 'visual_element'. This tells the designer HOW to lay out the content. You are not required to suggest an image for every slide. A well-structured text layout is also a visual element.
-  4.  **Available Visual Elements:** ['TitleSlide', 'Agenda', 'TwoColumn', 'Quote', 'SectionHeader', 'FeatureGrid', 'ProcessDiagram', 'DataChart', 'Timeline', 'ComparisonTable', 'TeamMembers', 'KpiGrid'].
+  3.  **Visual Design is Key:** For EACH slide, you MUST specify a 'visual_element'. This tells the designer HOW to lay out the content.
+  4.  **Image Integration:** For content slides (not Title/Agenda), STRONGLY consider adding an 'image_suggestion' when it would enhance understanding. Be specific about what type of image would work best (e.g., 'professional team meeting', 'modern data visualization', 'futuristic technology concept').
+  5.  **Available Visual Elements:** ['TitleSlide', 'Agenda', 'TwoColumn', 'Quote', 'SectionHeader', 'FeatureGrid', 'ProcessDiagram', 'DataChart', 'Timeline', 'ComparisonTable', 'TeamMembers', 'KpiGrid'].
 
   Your output MUST be ONLY the valid JSON object matching this exact schema:
   {
@@ -172,11 +173,25 @@ export async function generateDesignSystem(topic, angle) {
     The presentation topic is: "${topic}".
     The chosen angle is: "${angle?.title || ''}".
 
-    Generate a complete and cohesive Design System with a 'Futuristic-Corporate' aesthetic.
+    Generate a UNIQUE and cohesive Design System. Choose from these diverse aesthetic styles:
+    - 'Modern-Minimalist': Clean whites, subtle grays, bold accent colors (coral, teal)
+    - 'Tech-Futuristic': Dark backgrounds, neon accents, electric blues/purples, cyberpunk vibes
+    - 'Corporate-Professional': Navy blues, sophisticated grays, gold/bronze accents
+    - 'Creative-Vibrant': Bright gradients, bold colors (magenta, lime, orange), energetic palettes
+    - 'Nature-Organic': Earth tones, forest greens, warm browns, sunset oranges
+    - 'Medical-Clean': Clinical whites, soft blues, trustworthy teals, mint accents
+    - 'Financial-Trustworthy': Deep blues, silver accents, professional grays, emerald touches
+    - 'Startup-Dynamic': Bold oranges, electric blues, modern gradients, purple highlights
+    - 'Luxury-Premium': Rich blacks, gold accents, deep purples, champagne highlights
+    - 'Education-Friendly': Warm blues, soft yellows, approachable greens, coral accents
+    - 'Entertainment-Bold': Vibrant reds, electric yellows, deep magentas, neon greens
+    - 'Wellness-Calm': Soft lavenders, sage greens, warm beiges, dusty roses
 
-    - Color Palette: Must be sophisticated. Include a dark gradient for the background, vibrant primary/secondary colors for focus, and a bright accent for call-to-action elements.
-    - Typography: Choose one bold, clean font for headings (like 'Exo 2', 'Space Grotesk', 'Montserrat') and one highly readable font for body text (like 'Inter', 'Lato', 'Roboto').
-    - Style Tokens: Define properties for glassmorphism, shadows, and other visual effects. The 'glassBackgroundColor' MUST have transparency (e.g., 'rgba(255, 255, 255, 0.1)').
+    IMPORTANT: Select ONE aesthetic that best matches the topic and angle. Make it visually distinct and memorable.
+
+    - Color Palette: Create a sophisticated, cohesive palette with 3-4 main colors that work harmoniously
+    - Typography: Choose fonts that match the aesthetic (modern sans-serif for tech, serif for traditional, etc.)
+    - Style Tokens: Define glassmorphism and visual effects appropriate to the chosen style
 
     Return the JSON matching this exact schema (include both legacy keys and new background variants):
     {
@@ -238,7 +253,21 @@ export async function generateRecipeForSlide(slideBlueprint, topic, designSystem
 
     **CRITICAL INSTRUCTIONS - YOU MUST FOLLOW ALL OF THESE:**
 
-    1.  **CHOOSE THE BEST LAYOUT:** Select the MOST appropriate layout from 'availableLayouts' that fits the blueprint's intent. Use 'TitleAndBulletsLayout' for simple lists. Use 'FullBleedImageLayout' for impactful openers or section breaks with an image suggestion. Use 'ContactInfoLayout' for the final slide.
+    1.  **CHOOSE THE BEST LAYOUT:** Select the MOST appropriate layout from 'availableLayouts' that fits the blueprint's intent:
+        - 'TitleSlide': Only for slide 1 (presentation title)
+        - 'Agenda': Only for slide 2 (presentation outline)
+        - 'TitleAndBulletsLayout': For simple content lists, key points
+        - 'TwoColumn': For content with supporting images or side-by-side comparisons
+        - 'FeatureGrid': For showcasing 3-4 features, benefits, or services
+        - 'ProcessDiagram': For step-by-step processes, workflows, timelines
+        - 'DataChart': For statistics, metrics, quantitative data
+        - 'ComparisonTable': For feature comparisons, before/after, pros/cons
+        - 'FullBleedImageLayout': For impactful section breaks, emotional content
+        - 'Quote': For testimonials, key quotes, mission statements
+        - 'KpiGrid': For key performance indicators, metrics dashboard
+        - 'ContactInfoLayout': Only for final slide (contact/thank you)
+        - 'SectionHeader': For major section transitions
+        - 'TeamMembers': For introducing team, leadership, speakers
 
     2.  **EXPAND THE CONTENT (MANDATORY):** Do not just copy the 'content_points'. You MUST elaborate on them.
         - Write an introductory 'body' paragraph (2-3 sentences) that sets the context for the slide.
@@ -250,7 +279,14 @@ export async function generateRecipeForSlide(slideBlueprint, topic, designSystem
 
     5.  **SUGGEST CONTEXTUAL ICONS (IF APPLICABLE):** If the layout is 'FeatureGrid' or 'ProcessDiagram', for each item/feature, you MUST suggest a relevant icon name from the 'lucide-react' library (e.g., "TrendingUp", "ShieldCheck", "Users"). Add it as an 'icon' property to each feature object.
 
-    6.  **CREATE ARTISTIC IMAGE PROMPTS:** If the slide requires an image ('TwoColumn', 'FullBleedImageLayout'), create a highly specific and artistic 'image_prompt'. Include style keywords (e.g., 'photorealistic, cinematic lighting', 'abstract 3D render, pastel colors'). Otherwise, set to null.
+    6.  **CREATE ARTISTIC IMAGE PROMPTS:** If the slide requires an image ('TwoColumn', 'FullBleedImageLayout'), create a highly specific and artistic 'image_prompt' based on slide type:
+        - For business/corporate slides: 'professional team collaboration, modern office, cinematic lighting'
+        - For technology slides: 'futuristic digital interface, holographic displays, neon lighting, 3D render'
+        - For data/analytics slides: 'abstract data visualization, flowing charts, geometric patterns, blue tones'
+        - For timeline slides: 'journey concept, pathway, progression, minimalist design'
+        - For comparison slides: 'balance concept, scales, versus imagery, clean composition'
+        - For closing slides: 'success celebration, handshake, achievement, warm lighting'
+        - Always include style keywords like 'photorealistic', 'cinematic lighting', 'professional photography', '4K quality', 'modern aesthetic'. Otherwise, set to null.
 
     7.  **USE LAYOUT OPTIONS DYNAMICALLY:** For the 'TwoColumn' layout, randomly choose to set an 'imagePosition' property to either 'left' or 'right' to create visual variety in the presentation.
 

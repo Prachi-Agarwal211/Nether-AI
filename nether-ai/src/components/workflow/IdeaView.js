@@ -6,6 +6,7 @@ import { useUIStore } from '@/store/useUIStore';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import * as aiService from '@/services/aiService';
 import Button from '@/components/ui/Button';
+import InspirationPanel from './InspirationPanel';
 import { Paperclip, Sparkles } from 'lucide-react';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -121,11 +122,10 @@ export default function IdeaView() {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="max-w-4xl mx-auto"
     >
       <div className="text-center mb-10">
         <h1 className="font-sans font-medium text-white/90 text-3xl md:text-4xl mb-2">Start with an Idea</h1>
@@ -138,114 +138,152 @@ export default function IdeaView() {
           </Button>
         </div>
       </div>
-      
-      <div className="relative bg-black/30 border border-white/10 rounded-xl p-4 mb-8">
-        <textarea
-          value={presentation.topic}
-          onChange={(e) => setTopic(e.target.value)}
-          placeholder="e.g., The future of renewable energy..."
-          className="w-full h-24 bg-transparent text-lg text-white placeholder-white/40 resize-none outline-none p-2"
-          aria-label="Presentation topic input"
-          aria-describedby="topic-description"
-        />
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          accept=".pdf,.docx,.txt,.md"
-        />
-        {/* Controls row */}
-        <div className="mt-3 flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
-          <div className="flex-1">
-            <label className="block text-xs uppercase tracking-wider text-white/60 mb-2">Slide count</label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min={6}
-                max={30}
-                step={1}
-                value={presentation.slideCount}
-                onChange={(e) => setSlideCount(Number(e.target.value))}
-                className="w-full accent-white"
-                aria-label="Number of slides"
-                aria-valuemin={6}
-                aria-valuemax={30}
-                aria-valuenow={presentation.slideCount}
-              />
-              <div className="w-12 text-right text-sm text-white/80">{presentation.slideCount}</div>
+
+      {/* Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+        {/* Left Column: Generator */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          <div className="relative bg-black/30 border border-white/10 rounded-xl p-6 mb-6">
+            <textarea
+              value={presentation.topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="e.g., The future of renewable energy..."
+              className="w-full h-32 bg-transparent text-lg text-white placeholder-white/40 resize-none outline-none p-2"
+              aria-label="Presentation topic input"
+              aria-describedby="topic-description"
+            />
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept=".pdf,.docx,.txt,.md"
+            />
+            {/* Controls row */}
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex-1">
+                <label className="block text-xs uppercase tracking-wider text-white/60 mb-2">Slide count</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={6}
+                    max={30}
+                    step={1}
+                    value={presentation.slideCount}
+                    onChange={(e) => setSlideCount(Number(e.target.value))}
+                    className="w-full accent-white"
+                    aria-label="Number of slides"
+                    aria-valuemin={6}
+                    aria-valuemax={30}
+                    aria-valuenow={presentation.slideCount}
+                  />
+                  <div className="w-12 text-right text-sm text-white/80">{presentation.slideCount}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleFileSelect}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/15 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 transition"
+                  title="Attach document"
+                  aria-label="Attach document"
+                >
+                  <Paperclip size={18} />
+                </button>
+                <Button
+                  onClick={handleGenerateAngles}
+                  disabled={isLoading}
+                  className="pearl-button cta-glow"
+                  aria-describedby="generate-description"
+                >
+                  {isLoading ? 'Generating…' : 'Generate Angles'}
+                </Button>
+              </div>
             </div>
           </div>
-          <div className="md:ml-auto flex items-center gap-3 justify-end">
-            <button
-              type="button"
-              onClick={handleFileSelect}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/15 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 transition"
-              title="Attach document"
-              aria-label="Attach document"
-            >
-              <Paperclip size={18} />
-            </button>
-            <Button onClick={handleGenerateAngles} disabled={isLoading} aria-describedby="generate-description">
-              {isLoading ? 'Generating…' : 'Generate Angles'}
-            </Button>
-          </div>
-        </div>
+        </motion.div>
+
+        {/* Right Column: Inspiration Panel */}
+        <InspirationPanel />
       </div>
 
-      {error && <div className="mb-8 text-center text-red-400 bg-red-500/10 p-3 rounded-lg">{error}</div>}
+      {/* Error Message */}
+      {error && <div className="mb-8 text-center text-red-400 bg-red-500/10 p-4 rounded-lg border border-red-500/20">{error}</div>}
 
       {/* Angle Cards Section with generative stagger */}
       <AnimatePresence>
         {presentation.strategicAngles.length > 0 && (
           <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 gap-6"
-            variants={{
-              hidden: {},
-              visible: { transition: { staggerChildren: 0.15 } },
-            }}
-            initial="hidden"
-            animate="visible"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.5 }}
+            className="mt-12"
           >
-            {presentation.strategicAngles.map((angle) => (
-              <motion.div
-                key={angle.angle_id}
-                variants={{ hidden: { opacity: 0, y: 20, scale: 0.98 }, visible: { opacity: 1, y: 0, scale: 1 } }}
-                whileHover={{ y: -5, scale: 1.02 }}
-                className="glass-card p-6 flex flex-col cursor-pointer text-white"
-                onClick={() => !isLoading && handleChooseAngle(angle)}
-                role="button"
-                tabIndex={0}
-                aria-label={`Choose angle: ${angle.title}`}
-                onKeyDown={(e) => {
-                  if ((e.key === 'Enter' || e.key === ' ') && !isLoading) {
-                    handleChooseAngle(angle);
-                  }
-                }}
-              >
-                <h3 className="font-sans font-medium text-white/90 text-xl mb-3">{angle.title}</h3>
-                <ul className="space-y-2 list-inside list-disc text-white/80 flex-grow mb-6 pl-2">
-                  {(angle.key_points || []).map((point, index) => (
-                    <li key={index} className="text-sm">{point}</li>
-                  ))}
-                </ul>
-                <Button disabled={isLoading} className="mt-auto w-full justify-center">
-                  Choose this Angle
-                </Button>
-              </motion.div>
-            ))}
+            <h2 className="text-2xl font-semibold text-white mb-6 text-center">Choose Your Strategic Angle</h2>
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              variants={{
+                hidden: {},
+                visible: { transition: { staggerChildren: 0.15 } },
+              }}
+              initial="hidden"
+              animate="visible"
+            >
+              {presentation.strategicAngles.map((angle) => (
+                <motion.div
+                  key={angle.angle_id}
+                  variants={{ hidden: { opacity: 0, y: 20, scale: 0.98 }, visible: { opacity: 1, y: 0, scale: 1 } }}
+                  whileHover={{ y: -8, scale: 1.03, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
+                  className="glass-card p-6 flex flex-col cursor-pointer text-white border-2 border-transparent hover:border-white/20 transition-all duration-300"
+                  onClick={() => !isLoading && handleChooseAngle(angle)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Choose angle: ${angle.title}`}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && !isLoading) {
+                      handleChooseAngle(angle);
+                    }
+                  }}
+                >
+                  <h3 className="font-sans font-medium text-white/90 text-xl mb-4">{angle.title}</h3>
+                  <ul className="space-y-3 list-inside list-disc text-white/80 flex-grow mb-6 pl-2">
+                    {(angle.key_points || []).map((point, index) => (
+                      <li key={index} className="text-sm leading-relaxed">{point}</li>
+                    ))}
+                  </ul>
+                  <Button disabled={isLoading} className="mt-auto w-full justify-center pearl-button">
+                    Choose this Angle
+                  </Button>
+                </motion.div>
+              ))}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Show skeletons while loading and no angles yet */}
       {isLoading && !presentation.strategicAngles.length && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-          <AngleSkeleton />
-          <AngleSkeleton />
-          <AngleSkeleton />
-          <AngleSkeleton />
-        </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mt-12"
+        >
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-semibold text-white mb-2">Generating Strategic Angles...</h2>
+            <p className="text-white/60">Our AI is analyzing your topic to create the best presentation angles</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <AngleSkeleton />
+            <AngleSkeleton />
+            <AngleSkeleton />
+            <AngleSkeleton />
+          </div>
+        </motion.div>
       )}
     </motion.div>
   );

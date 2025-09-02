@@ -181,9 +181,9 @@ export default function DeckView() {
             transition={{ type: 'spring', damping: 30, stiffness: 250 }}
             className="absolute top-0 left-0 bottom-0 w-80 sm:w-80 md:w-96 p-4 z-20"
           >
-            <div className="bg-black/20 border border-white/10 rounded-xl h-full flex flex-col backdrop-blur-md">
-              <div className="p-3 border-b border-white/10 flex-shrink-0">
-                <h3 className="text-sm font-semibold text-white">Slides</h3>
+            <div className="bg-black/20 border border-white/10 rounded-xl h-full flex flex-col backdrop-blur-md shadow-2xl shadow-black/50 ring-1 ring-white/5">
+              <div className="p-3 border-b border-white/10 flex-shrink-0 bg-gradient-to-r from-white/5 to-transparent">
+                <h3 className="text-sm font-semibold text-white drop-shadow-sm">Slides</h3>
               </div>
               <div className="overflow-y-auto p-2 space-y-2">
                 {Array.from({ length: totalSlides }).map((_, index) => {
@@ -233,7 +233,7 @@ export default function DeckView() {
             transition={{ type: 'spring', damping: 30, stiffness: 250 }}
             className="absolute top-0 right-0 bottom-0 w-[340px] sm:w-[340px] md:w-[400px] p-4 z-20"
           >
-            <div className="bg-black/20 border border-white/10 rounded-xl h-full backdrop-blur-md">
+            <div className="bg-black/20 border border-white/10 rounded-xl h-full backdrop-blur-md shadow-2xl shadow-black/50 ring-1 ring-white/5">
               <DeckAICopilot activeSlide={activeRecipe} />
             </div>
           </motion.div>

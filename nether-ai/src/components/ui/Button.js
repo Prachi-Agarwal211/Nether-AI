@@ -6,8 +6,8 @@ const Button = React.forwardRef(({ className, variant = 'primary', children, ...
   const baseClasses = "font-semibold transition-transform duration-200 ease-in-out active:scale-95";
   
   const variantClasses = {
-    primary: 'primary-button',
-    secondary: 'secondary-button'
+    primary: 'pearl-button',
+    secondary: 'glass-button'
   };
 
   return (

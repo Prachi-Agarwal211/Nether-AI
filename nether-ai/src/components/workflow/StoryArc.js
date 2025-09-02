@@ -12,49 +12,6 @@ const VisualIcon = ({ type }) => {
   return <List className="w-4 h-4 text-white/60" />;
 };
 
-const SlideNode = ({ slide, index }) => {
-  const itemVariants = {
-    hidden: { opacity: 0, scale: 0.94, y: 8 },
-    visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', damping: 16, stiffness: 140 } }
-  };
-
-  return (
-    <motion.div
-      variants={itemVariants}
-      whileHover={{ y: -6, scale: 1.02, boxShadow: '0 10px 30px rgba(255, 225, 198, 0.10)' }}
-      className="relative glass-card p-6 border border-white/10 rounded-xl"
-    >
-      <div className="flex justify-between items-start mb-3 gap-3">
-        <h3 className="text-lg md:text-xl font-medium text-white/90">
-          <span className="text-peachSoft pr-2">#{index + 1}</span>
-          {slide.slide_title}
-        </h3>
-        {slide.visual_element?.type && (
-          <div className="flex items-center gap-2 text-xs text-white/70 bg-white/5 px-2 py-1 rounded-md border border-white/10">
-            <VisualIcon type={slide.visual_element.type} />
-            <span className="truncate max-w-[160px]">{slide.visual_element.type}</span>
-          </div>
-        )}
-      </div>
-      {slide.objective && (
-        <div className="text-xs text-white/60 mb-2">Objective: {slide.objective}</div>
-      )}
-      <motion.ul
-        className="list-disc pl-5 space-y-2 text-white/90"
-        initial="hidden"
-        animate="visible"
-        variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.05 } } }}
-      >
-        {(slide.content_points || []).map((point, i) => (
-          <motion.li key={i} variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }} className="text-sm">
-            {point}
-          </motion.li>
-        ))}
-      </motion.ul>
-    </motion.div>
-  );
-};
-
 export default function StoryArc({ blueprint }) {
   if (!blueprint || !blueprint.slides) return null;
 
@@ -74,8 +31,8 @@ export default function StoryArc({ blueprint }) {
       {/* Scrollable outline area */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="relative" aria-hidden>
-          {/* Thinner, softer timeline */}
-          <div className="absolute left-[24px] top-0 w-0.5 h-full bg-gradient-to-b from-white/25 via-white/10 to-transparent" />
+          {/* Enhanced timeline with gradient and glow */}
+          <div className="absolute left-[24px] top-0 w-1 h-full bg-gradient-to-b from-peachSoft/60 via-white/30 to-transparent shadow-lg shadow-peachSoft/20" />
         </div>
         <motion.div
           className="space-y-8 relative z-10"
@@ -85,14 +42,15 @@ export default function StoryArc({ blueprint }) {
         >
           {blueprint.slides.map((slide, index) => (
             <div key={slide.slide_id || index} className="relative pl-16">
-              {/* Smaller pulsing node */}
-              <div className="absolute left-[19px] top-8 w-2.5 h-2.5 rounded-full bg-white/80 ring-4 ring-white/10 animate-pulse" />
-              {/* Refined card with stronger hierarchy */}
+              {/* Enhanced pulsing node */}
+              <div className="absolute left-[20px] top-8 w-3 h-3 rounded-full bg-gradient-to-r from-peachSoft to-mauveLight shadow-lg shadow-peachSoft/50 animate-pulse ring-2 ring-white/20" />
+              {/* Enhanced card with theme colors */}
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
-                className="relative glass-card p-6 border border-white/10 rounded-xl transition-all duration-300 hover:shadow-xl hover:shadow-black/30"
+                whileHover={{ y: -4, scale: 1.01, borderColor: 'var(--color-primary)' }}
+                className="relative glass-card p-6 border-2 border-transparent hover:border-peachSoft/30 rounded-xl transition-all duration-300 hover:shadow-xl hover:shadow-peachSoft/10"
               >
                 <div className="flex justify-between items-start mb-3 gap-3">
                   <h3 className="flex items-baseline gap-3 text-xl md:text-2xl">

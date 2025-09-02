@@ -18,6 +18,7 @@ function normalizeRecipeProps(props = {}) {
   if (!p.bullets && Array.isArray(p.points)) p.bullets = p.points;
   if (!p.bullets && Array.isArray(p.items)) p.bullets = p.items;
   if (!p.body && typeof p.description === 'string') p.body = p.description;
+  if (!p.body && p.details) p.body = JSON.stringify(p.details);
   if (!p.imageUrl) p.imageUrl = p.image || p.imageURL || p.image_url;
   if (!p.quote && typeof p.text === 'string') p.quote = p.text;
   if (!p.author) p.author = p.attribution || p.source;

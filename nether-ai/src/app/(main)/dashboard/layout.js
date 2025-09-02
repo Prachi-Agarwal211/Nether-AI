@@ -15,8 +15,8 @@ export default function DashboardLayout({ children }) {
   }, []);
 
   return (
-    // Master grid: header auto height, main fills remaining space; no page scroll
-    <div className="h-screen w-screen grid grid-rows-[auto_1fr] overflow-hidden">
+    // Master grid: header auto height, main fills remaining space; allow scrolling
+    <div className="min-h-screen w-screen grid grid-rows-[auto_1fr]">
       <VantaBackground />
 
       {/* Row 1: Header */}
@@ -25,8 +25,10 @@ export default function DashboardLayout({ children }) {
       </div>
 
       {/* Row 2: Main content */}
-      <main className="relative z-10 overflow-hidden">
-        {children}
+      <main className="relative z-10 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {children}
+        </div>
       </main>
     </div>
   );
