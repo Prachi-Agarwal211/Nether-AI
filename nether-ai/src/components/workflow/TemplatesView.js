@@ -86,7 +86,7 @@ export default function TemplatesView() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="h-full w-full overflow-auto p-6">
       <div className="text-center mb-10">
         <h1 className="font-sans font-medium text-white/90 text-3xl md:text-4xl mb-2">Presentation Templates</h1>
         <p className="text-base text-white/70">Choose from our pre-built templates to get started quickly</p>

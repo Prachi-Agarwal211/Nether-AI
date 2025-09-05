@@ -1,6 +1,15 @@
 'use client';
 import { motion } from 'framer-motion';
 
+// Helper to safely render a value that might be a string or an object
+const renderContent = (content) => {
+  if (typeof content === 'string') return content;
+  if (typeof content === 'object' && content !== null) {
+    return content.point || content.item || JSON.stringify(content);
+  }
+  return '';
+};
+
 export function TwoColumn({ title, body, bullets, imageUrl, animated, imagePosition = 'right' }) {
   const leftVariants = {
     hidden: { opacity: 0, x: -30 },
@@ -30,7 +39,7 @@ export function TwoColumn({ title, body, bullets, imageUrl, animated, imagePosit
             {bullets.map((bullet, i) => (
               <li key={i} className="flex items-start">
                 <span className="text-accent-primary mr-3 mt-1">✦</span>
-                <span className="text-text-secondary">{bullet}</span>
+                <span className="text-text-secondary">{renderContent(bullet)}</span>
               </li>
             ))}
           </ul>

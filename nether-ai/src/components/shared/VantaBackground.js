@@ -40,7 +40,6 @@ const VantaBackground = () => {
         clearInterval(timer);
       } else if (++tries >= maxTries) {
         clearInterval(timer);
-        // optionally log for diagnostics
         if (process.env.NODE_ENV !== 'production') {
           // eslint-disable-next-line no-console
           console.warn('[VantaBackground] VANTA/THREE not available after retries.');
@@ -59,8 +58,8 @@ const VantaBackground = () => {
 
   return (
     <>
-      <div ref={vantaRef} className="fixed top-0 left-0 w-full h-full z-[-2]" />
-      <div className="fixed top-0 left-0 w-full h-full z-[-1] bg-black/60" />
+      <div ref={vantaRef} className="fixed top-0 left-0 w-full h-full z-0" />
+      <div className="fixed top-0 left-0 w-full h-full z-0 bg-black/60" />
     </>
   );
 };

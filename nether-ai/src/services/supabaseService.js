@@ -63,6 +63,86 @@ export async function signInWithOtp(email, redirectPath = '/dashboard') {
   if (error) throw error;
 }
 
+export async function signOut() {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+// --- USER PROFILE ---
+
+export async function getUserProfile() {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) throw new Error("User not authenticated.");
+
+  // Query by user_id (matches your table schema)
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, user_id, email, username, first_name, last_name, phone, date_of_birth')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message || 'Failed to load profile');
+
+  // If no row exists, create a default profile for this user
+  if (!data) {
+    const insertPayload = {
+      user_id: user.id,
+      email: user.email ?? null,
+      username: user.user_metadata?.username ?? null,
+      first_name: user.user_metadata?.first_name ?? null,
+      last_name: user.user_metadata?.last_name ?? null,
+      phone: user.user_metadata?.phone ?? null,
+      date_of_birth: user.user_metadata?.date_of_birth ?? null,
+    };
+
+    const { data: created, error: insertError } = await supabase
+      .from('profiles')
+      .insert(insertPayload)
+      .select('id, user_id, email, username, first_name, last_name, phone, date_of_birth')
+      .single();
+
+    if (insertError) throw new Error(insertError.message || 'Failed to initialize profile');
+    return created;
+  }
+
+  return data;
+}
+
+export async function updateUserProfile(profileData) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("User not authenticated.");
+
+  // Try to update by user_id
+  const { data: updated, error: updateError } = await supabase
+    .from('profiles')
+    .update({
+      username: profileData.username ?? null,
+      first_name: profileData.first_name ?? null,
+      last_name: profileData.last_name ?? null,
+      phone: profileData.phone ?? null,
+    })
+    .eq('user_id', user.id)
+    .select('id')
+    ;
+
+  if (updateError) throw new Error(updateError.message);
+
+  // If no row was updated, insert one
+  if (!updated || updated.length === 0) {
+    const { error: insertError } = await supabase
+      .from('profiles')
+      .insert({
+        user_id: user.id,
+        email: user.email ?? null,
+        username: profileData.username ?? null,
+        first_name: profileData.first_name ?? null,
+        last_name: profileData.last_name ?? null,
+        phone: profileData.phone ?? null,
+      });
+    if (insertError) throw new Error(insertError.message);
+  }
+}
+
 // --- DATA ---
 
 export async function savePresentation(presentationData) {

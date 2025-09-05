@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaGoogle } from 'react-icons/fa';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
+import { Loader2 } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import * as supabaseService from '@/services/supabaseService';
 
@@ -100,7 +101,22 @@ export default function AuthForm({ view = 'signIn', setView }) {
     return score; // 0-5
   };
 
-  const renderContent = () => {
+  const renderLoadingButtonContent = (defaultText) => (
+    <span className="inline-flex items-center gap-2">
+      <Loader2 className="h-4 w-4 animate-spin" />
+      {defaultText.replace(/e$/, 'ing…')}
+    </span>
+  );
+
+  const renderContent = (content) => {
+    if (typeof content === 'string') return content;
+    if (typeof content === 'object' && content !== null) {
+      return content.point || content.item || JSON.stringify(content);
+    }
+    return '';
+  };
+
+  const renderContentSwitch = () => {
     switch (view) {
       case 'signUp':
         return (
@@ -145,7 +161,7 @@ export default function AuthForm({ view = 'signIn', setView }) {
               </span>
             </label>
             <button type="submit" disabled={loading} className="primary-button w-full">
-              {loading ? 'Creating…' : 'Create Account'}
+              {loading ? renderLoadingButtonContent('Create Account') : 'Create Account'}
             </button>
             <p className="text-center text-sm text-white/60">
               Already have an account?{' '}
@@ -162,7 +178,7 @@ export default function AuthForm({ view = 'signIn', setView }) {
             </div>
             <Input id="email" name="email" type="email" label="Email Address" value={formState.email} onChange={handleInputChange} error={fieldErrors.email} />
             <button type="submit" disabled={loading} className="primary-button w-full">
-              {loading ? 'Sending…' : 'Send reset link'}
+              {loading ? renderLoadingButtonContent('Send reset link') : 'Send reset link'}
             </button>
             <p className="text-center text-sm text-white/60">
               Remembered it?{' '}
@@ -190,7 +206,7 @@ export default function AuthForm({ view = 'signIn', setView }) {
               <button type="button" className="underline hover:text-white" onClick={() => setView?.('forgotPassword')}>Forgot password?</button>
             </label>
             <button type="submit" disabled={loading} className="pearl-button w-full">
-              {loading ? 'Signing In…' : 'Sign In'}
+              {loading ? renderLoadingButtonContent('Sign In') : 'Sign In'}
             </button>
             <div className="my-5 flex items-center">
               <div className="flex-grow border-t border-white/10" />
@@ -221,11 +237,11 @@ export default function AuthForm({ view = 'signIn', setView }) {
     <div className="w-full max-w-md mx-auto">
       <AnimatePresence mode="wait">
         <form onSubmit={handleAuthAction}>
-          {renderContent()}
+          {renderContentSwitch()}
         </form>
       </AnimatePresence>
-      {error && <p className="mt-4 text-center text-sm text-red-400" role="alert" aria-live="assertive">{error}</p>}
-      {message && <p className="mt-4 text-center text-sm text-green-400" role="status" aria-live="polite">{message}</p>}
+      {error && <p className="mt-4 text-center text-sm text-red-400" role="alert" aria-live="assertive">{renderContent(error)}</p>}
+      {message && <p className="mt-4 text-center text-sm text-green-400" role="status" aria-live="polite">{renderContent(message)}</p>}
     </div>
   );
 }

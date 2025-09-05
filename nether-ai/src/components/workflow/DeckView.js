@@ -1,251 +1,255 @@
 'use client';
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useUIStore } from '@/store/useUIStore';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import ResponsiveCanvas from '../deck/ResponsiveCanvas';
 import SlideRenderer from '../deck/SlideRenderer';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PanelLeft, PanelRight, ChevronLeft, ChevronRight, Palette } from 'lucide-react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { PanelLeft, PanelRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import DeckAICopilot from '../deck/DeckAICopilot';
-import DesignSystemEditor from '../ui/DesignSystemEditor';
+import { LoadingSpinner } from '../shared/LoadingSpinner';
+
+const DeckToolbar = ({
+  toggleLeftPanel, toggleRightPanel,
+  prevSlide, nextSlide,
+  activeSlideIndex, totalSlides
+}) => {
+  return (
+    <div className="relative z-10 w-full flex items-center justify-center">
+      <div className="glass-card flex items-center justify-center gap-2 p-2 rounded-full shadow-lg">
+        <button onClick={toggleLeftPanel} className="p-2 rounded-full text-white/80 hover:bg-white/10 transition-colors" aria-label="Toggle Tools Panel">
+          <PanelLeft size={18} />
+        </button>
+        
+        <div className="flex items-center gap-3 px-2">
+           <button onClick={prevSlide} className="p-2 rounded-full text-white/80 hover:bg-white/10 transition-colors disabled:opacity-40" aria-label="Previous Slide" disabled={activeSlideIndex === 0}>
+              <ChevronLeft size={20} />
+            </button>
+            <span className="text-sm font-mono w-16 text-center text-white/90">{activeSlideIndex + 1} / {totalSlides}</span>
+           <button onClick={nextSlide} className="p-2 rounded-full text-white/80 hover:bg-white/10 transition-colors disabled:opacity-40" aria-label="Next Slide" disabled={activeSlideIndex >= totalSlides - 1}>
+              <ChevronRight size={20} />
+            </button>
+        </div>
+
+        <button onClick={toggleRightPanel} className="p-2 rounded-full text-white/80 hover:bg-white/10 transition-colors" aria-label="Toggle AI Co-pilot Panel">
+          <PanelRight size={18} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export default function DeckView() {
   const { isLoading } = useUIStore();
   const { presentation, setActiveSlideIndex } = usePresentationStore();
   const { slideRecipes = [], activeSlideIndex = 0 } = presentation || {};
   const totalSlides = presentation?.blueprint?.slides?.length || slideRecipes.length || 0;
+
+  // State for panel visibility and slide transition direction
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+  const [direction, setDirection] = useState(0);
+  
+  // Refs for imperative panel control
+  const leftPanelRef = useRef(null);
+  const rightPanelRef = useRef(null);
+  const filmstripRef = useRef(null);
+
+  // Active slide recipe memoization
   const activeRecipe = useMemo(() => (
     Array.isArray(slideRecipes) && activeSlideIndex < slideRecipes.length ? slideRecipes[activeSlideIndex] : null
   ), [slideRecipes, activeSlideIndex]);
 
-  // Panel visibility state
-  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true); // Default open, will be adjusted on mount
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
-
   // Handle responsive panel state on mount
   useEffect(() => {
     const handleResize = () => {
-      const isDesktop = window.innerWidth >= 768;
-      setIsLeftPanelOpen(isDesktop);
+      const isDesktop = window.innerWidth >= 1024;
+      // Auto-collapse Tools panel (placeholder) to maximize canvas space
+      setIsLeftPanelOpen(false);
+      leftPanelRef.current?.collapse?.();
+      // Keep AI panel open on desktop for guidance
       setIsRightPanelOpen(isDesktop);
+      leftPanelRef.current?.resize?.(isDesktop ? 16 : 0);
+      rightPanelRef.current?.resize?.(isDesktop ? 22 : 0);
     };
-
-    handleResize(); // Set initial state
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Design system editor
-  const [isDesignEditorOpen, setIsDesignEditorOpen] = useState(false);
-
-  // Touch handling for swipe navigation
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-
-  const handleTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e) => {
-    touchEndX.current = e.changedTouches[0].clientX;
-    const diff = touchStartX.current - touchEndX.current;
-    const threshold = 50; // Minimum swipe distance
-
-    if (Math.abs(diff) > threshold) {
-      if (diff > 0) {
-        // Swipe left - next slide
-        setActiveSlideIndex(Math.min(Math.max(0, totalSlides - 1), activeSlideIndex + 1));
-      } else {
-        // Swipe right - previous slide
-        setActiveSlideIndex(Math.max(0, activeSlideIndex - 1));
+  // Panel toggle functions
+  const togglePanel = (panelRef, isOpen, setIsOpen, defaultSize) => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    if (isOpen) {
+      panel.collapse();
+    } else {
+      panel.expand();
+      // Only resize if it's collapsed to 0, otherwise let it return to previous size
+      if (panel.getSize() < 5) {
+        panel.resize(defaultSize);
       }
     }
+    setIsOpen(!isOpen);
+  };
+  
+  const paginate = (newDirection) => {
+    if (newDirection > 0) { // next
+      setActiveSlideIndex(Math.min(activeSlideIndex + 1, totalSlides - 1));
+    } else { // prev
+      setActiveSlideIndex(Math.max(activeSlideIndex - 1, 0));
+    }
+    setDirection(newDirection);
+  };
+  
+  const slideVariants = {
+    enter: (direction) => ({
+      x: direction > 0 ? '100%' : '-100%',
+      opacity: 0,
+      scale: 0.98
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+      scale: 1
+    },
+    exit: (direction) => ({
+      zIndex: 0,
+      x: direction < 0 ? '100%' : '-100%',
+      opacity: 0,
+      scale: 0.98
+    })
   };
 
-  const panelVariants = { open: { x: 0, opacity: 1 }, closed: { x: '-100%', opacity: 0 } };
-  const rightPanelVariants = { open: { x: 0, opacity: 1 }, closed: { x: '100%', opacity: 0 } };
+  useEffect(() => {
+    const filmstrip = filmstripRef.current;
+    if (filmstrip && filmstrip.children[activeSlideIndex]) {
+      const activeChild = filmstrip.children[activeSlideIndex];
+      activeChild.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest'
+      });
+    }
+  }, [activeSlideIndex]);
 
   return (
-    // Designer's Cockpit: layered layout
-    <div
-      className="h-full w-full flex flex-col relative overflow-hidden"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="h-full w-full p-4">
+      <PanelGroup direction="horizontal" className="h-full">
+        {/* Left Tools Panel */}
+        <Panel ref={leftPanelRef} collapsible onCollapse={() => setIsLeftPanelOpen(false)} onExpand={() => setIsLeftPanelOpen(true)} defaultSize={16} minSize={12} maxSize={28} className="pr-2 !overflow-visible">
+           <div className="h-full w-full glass-card flex flex-col rounded-2xl">
+              <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                <h3 className="font-semibold text-white">Tools</h3>
+                <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/10 text-white/70">Coming soon</span>
+              </div>
+              <div className="flex-1 p-4 text-sm text-white/60">
+                The Tools panel is under development. To focus on your slides, it stays hidden by default. Use the left icon in the toolbar to toggle it anytime.
+              </div>
+           </div>
+        </Panel>
+        <PanelResizeHandle className="w-2.5 flex items-center justify-center bg-transparent group">
+           <div className="w-1 h-16 bg-white/10 group-hover:bg-white/20 rounded-full transition-colors" />
+        </PanelResizeHandle>
 
-      {/* Top toolbar toggles */}
-      <div className="absolute top-2 left-2 right-2 z-30 flex justify-between items-center gap-2">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsLeftPanelOpen(v => !v)}
-            className="glass-button p-3 sm:p-3 md:p-4 rounded-full text-white touch-manipulation"
-            aria-label="Toggle left panel"
-          >
-            <PanelLeft size={18} className="sm:w-4 sm:h-4 md:w-5 md:h-5" />
-          </button>
-          <button
-            onClick={() => setIsDesignEditorOpen(true)}
-            className="glass-button p-3 sm:p-3 md:p-4 rounded-full text-white touch-manipulation"
-            aria-label="Customize design system"
-          >
-            <Palette size={18} className="sm:w-4 sm:h-4 md:w-5 md:h-5" />
-          </button>
-        </div>
-        <button
-          onClick={() => setIsRightPanelOpen(v => !v)}
-          className="glass-button p-3 sm:p-3 md:p-4 rounded-full text-white touch-manipulation"
-          aria-label="Toggle right panel"
-        >
-          <PanelRight size={18} className="sm:w-4 sm:h-4 md:w-5 md:h-5" />
-        </button>
-      </div>
-
-      {/* Center Stage (canvas-first) */}
-      <div className="flex-grow w-full h-full p-8 md:p-12 lg:p-16">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeSlideIndex}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="w-full h-full"
-          >
-            <ResponsiveCanvas>
-              {activeRecipe ? (
-                <SlideRenderer recipe={activeRecipe} animated={true} />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-white/60">
-                  {totalSlides > 0 ? (isLoading ? `Generating Slide ${activeSlideIndex + 1}...` : 'Select a slide to view.') : 'No slides yet'}
-                </div>
-              )}
-            </ResponsiveCanvas>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Bottom Filmstrip & Navigation */}
-      <div className="w-full h-32 sm:h-40 flex-shrink-0 p-2 sm:p-4">
-        <div className="glass-card h-full w-full flex items-center justify-between p-2 sm:p-4 gap-2 sm:gap-4 rounded-xl">
-          <button
-            onClick={() => setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))}
-            className="glass-button p-3 sm:p-3 md:p-4 rounded-full text-white disabled:opacity-50 touch-manipulation"
-            disabled={activeSlideIndex === 0}
-            aria-label="Previous slide"
-          >
-            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
-          <div className="flex-grow h-full overflow-x-auto overflow-y-hidden flex items-center gap-2 sm:gap-3">
-            {Array.from({ length: totalSlides }).map((_, index) => {
-              const recipe = slideRecipes[index];
-              const active = index === activeSlideIndex;
-              return (
-                <button
-                  key={index}
-                  onClick={() => setActiveSlideIndex(index)}
-                  className={`h-full aspect-video rounded-lg flex-shrink-0 transition-all duration-200 border border-white/15 overflow-hidden touch-manipulation ${
-                    active ? 'ring-2 ring-peachSoft' : 'hover:ring-1 hover:ring-white/50'
-                  }`}
-                  aria-label={`Go to slide ${index + 1}`}
+        {/* Center Content Area */}
+        <Panel defaultSize={62} minSize={30}>
+          <div className="w-full h-full flex flex-col gap-4">
+            {/* Top Toolbar (no overlay) */}
+            <DeckToolbar 
+              toggleLeftPanel={() => togglePanel(leftPanelRef, isLeftPanelOpen, setIsLeftPanelOpen, 16)}
+              toggleRightPanel={() => togglePanel(rightPanelRef, isRightPanelOpen, setIsRightPanelOpen, 22)}
+              prevSlide={() => paginate(-1)}
+              nextSlide={() => paginate(1)}
+              activeSlideIndex={activeSlideIndex}
+              totalSlides={totalSlides}
+            />
+            {/* Main Slide Viewer */}
+            <div className="flex-1 w-full h-full glass-card rounded-2xl overflow-hidden relative">
+              <AnimatePresence initial={false} custom={direction}>
+                <motion.div
+                  key={activeSlideIndex}
+                  custom={direction}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: "spring", stiffness: 300, damping: 35 },
+                    opacity: { duration: 0.3 }
+                  }}
+                  className="w-full h-full absolute"
                 >
-                  {recipe ? (
-                    <div className="w-full h-full relative">
-                      <div className="absolute top-0 left-0" style={{ width: '1280px', height: '720px', transform: 'scale(0.18)', transformOrigin: 'top left' }}>
-                        <SlideRenderer recipe={recipe} animated={false} />
+                  <ResponsiveCanvas>
+                    {activeRecipe ? (
+                      <SlideRenderer recipe={activeRecipe} animated={true} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white/60">
+                        {isLoading ? `Generating Slide ${activeSlideIndex + 1}...` : 'Select a slide.'}
                       </div>
+                    )}
+                  </ResponsiveCanvas>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+            {/* Horizontal Filmstrip */}
+            <div className="h-40 w-full glass-card rounded-2xl p-3">
+              <div 
+                ref={filmstripRef}
+                className="h-full w-full overflow-x-auto overflow-y-hidden flex items-center gap-3 snap-x snap-mandatory"
+              >
+                 {Array.from({ length: totalSlides }).map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setActiveSlideIndex(index)}
+                    className={`h-full aspect-video rounded-lg flex-shrink-0 transition-all duration-300 border-2 overflow-hidden relative group snap-center ${
+                      activeSlideIndex === index ? 'border-peachSoft shadow-lg shadow-peachSoft/20' : 'border-white/15 hover:border-white/40'
+                    }`}
+                  >
+                    {/* Index label */}
+                    <div className="absolute top-1.5 left-1.5 z-10 text-[10px] px-1.5 py-0.5 rounded bg-black/50 text-white/80">
+                      {index + 1}
                     </div>
-                  ) : (
-                    <div className="w-full h-full bg-white/10 animate-pulse" />
-                  )}
-                </button>
-              );
-            })}
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-black/20">
+                        <motion.div 
+                          className="h-full bg-peachSoft" 
+                          initial={{ scaleX: 0 }}
+                          animate={{ scaleX: activeSlideIndex === index ? 1 : 0 }}
+                          transition={{ duration: 0.4, ease: 'easeInOut' }}
+                          style={{ transformOrigin: 'left' }}
+                        />
+                    </div>
+                    <div className="w-full h-full relative bg-black">
+                      <div className="absolute top-0 left-0" style={{ width: '1280px', height: '720px', transform: 'scale(0.18)', transformOrigin: 'top left' }}>
+                        <SlideRenderer recipe={slideRecipes[index]} animated={false} />
+                      </div>
+                      {/* Loading overlay for slides still generating */}
+                      {!slideRecipes[index] && (
+                        <div className="absolute inset-0 grid place-items-center bg-black/40">
+                          <LoadingSpinner />
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <button
-            onClick={() => setActiveSlideIndex(Math.min(Math.max(0, totalSlides - 1), activeSlideIndex + 1))}
-            className="glass-button p-3 sm:p-3 md:p-4 rounded-full text-white disabled:opacity-50 touch-manipulation"
-            disabled={activeSlideIndex >= totalSlides - 1}
-            aria-label="Next slide"
-          >
-            <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
-        </div>
-      </div>
+        </Panel>
+        <PanelResizeHandle className="w-2.5 flex items-center justify-center bg-transparent group">
+           <div className="w-1 h-16 bg-white/10 group-hover:bg-white/20 rounded-full transition-colors" />
+        </PanelResizeHandle>
 
-      {/* Floating Left Panel (Organizer) */}
-      <AnimatePresence>
-        {isLeftPanelOpen && (
-          <motion.div
-            variants={panelVariants}
-            initial="closed" animate="open" exit="closed"
-            transition={{ type: 'spring', damping: 30, stiffness: 250 }}
-            className="absolute top-0 left-0 bottom-0 w-80 sm:w-80 md:w-96 p-4 z-20"
-          >
-            <div className="bg-black/20 border border-white/10 rounded-xl h-full flex flex-col backdrop-blur-md shadow-2xl shadow-black/50 ring-1 ring-white/5">
-              <div className="p-3 border-b border-white/10 flex-shrink-0 bg-gradient-to-r from-white/5 to-transparent">
-                <h3 className="text-sm font-semibold text-white drop-shadow-sm">Slides</h3>
-              </div>
-              <div className="overflow-y-auto p-2 space-y-2">
-                {Array.from({ length: totalSlides }).map((_, index) => {
-                  const recipe = slideRecipes[index];
-                  if (!recipe) {
-                    return (
-                      <div key={index} className="w-full p-1">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-white/60 w-6 text-center">{index + 1}</span>
-                          <div className="w-full aspect-video bg-white/10 rounded-md animate-pulse" />
-                        </div>
-                      </div>
-                    );
-                  }
-                  return (
-                    <button
-                      key={recipe.slide_id || index}
-                      onClick={() => setActiveSlideIndex(index)}
-                      className={`w-full p-1 rounded-lg transition-all duration-200 touch-manipulation ${
-                        index === activeSlideIndex ? 'bg-white/10 ring-2 ring-peachSoft' : 'hover:bg-white/10'
-                      }`}
-                      aria-label={`Select slide ${index + 1}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-white/60 w-6 text-center">{index + 1}</span>
-                        <div className="w-full aspect-video bg-black border border-white/15 rounded-md overflow-hidden relative">
-                          <div className="absolute top-0 left-0" style={{ width: '1280px', height: '720px', transform: 'scale(0.18)', transformOrigin: 'top left' }}>
-                            <SlideRenderer recipe={recipe} animated={false} />
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {/* Right AI Co-pilot Panel */}
+        <Panel ref={rightPanelRef} collapsible onCollapse={() => setIsRightPanelOpen(false)} onExpand={() => setIsRightPanelOpen(true)} defaultSize={22} minSize={18} maxSize={35} className="pl-2 !overflow-visible">
+          <div className="h-full w-full glass-card rounded-2xl overflow-hidden">
+            <DeckAICopilot activeSlide={activeRecipe} />
+          </div>
+        </Panel>
 
-      {/* Floating Right Panel (AI Co-pilot) */}
-      <AnimatePresence>
-        {isRightPanelOpen && (
-          <motion.div
-            variants={rightPanelVariants}
-            initial="closed" animate="open" exit="closed"
-            transition={{ type: 'spring', damping: 30, stiffness: 250 }}
-            className="absolute top-0 right-0 bottom-0 w-[340px] sm:w-[340px] md:w-[400px] p-4 z-20"
-          >
-            <div className="bg-black/20 border border-white/10 rounded-xl h-full backdrop-blur-md shadow-2xl shadow-black/50 ring-1 ring-white/5">
-              <DeckAICopilot activeSlide={activeRecipe} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Design System Editor */}
-      <DesignSystemEditor
-        isOpen={isDesignEditorOpen}
-        onClose={() => setIsDesignEditorOpen(false)}
-      />
-
+      </PanelGroup>
     </div>
   );
 }

@@ -11,6 +11,7 @@ const initialState = {
   themeRuntime: null,
   designSystem: null,
   activeSlideIndex: 0,
+  recentPresentations: [],
 };
 
 export const usePresentationStore = create((set) => ({
@@ -30,5 +31,14 @@ export const usePresentationStore = create((set) => ({
     const lastIndex = Math.max(0, (state.presentation.slideRecipes?.length || 1) - 1);
     const newIndex = Math.max(0, Math.min(index, lastIndex));
     return { presentation: { ...state.presentation, activeSlideIndex: newIndex } };
+  }),
+  addRecentPresentation: (item) => set((state) => {
+    const prev = state.presentation.recentPresentations || [];
+    const id = item?.id || `${Date.now()}`;
+    const deduped = [
+      { id, title: item?.title || state.presentation.topic || 'Untitled', topic: item?.topic || state.presentation.topic || '', createdAt: item?.createdAt || new Date().toISOString() },
+      ...prev.filter((p) => p.id !== id).slice(0, 19),
+    ];
+    return { presentation: { ...state.presentation, recentPresentations: deduped } };
   }),
 }));

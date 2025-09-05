@@ -2,6 +2,15 @@
 
 import { motion } from 'framer-motion';
 
+// Helper to safely render a value that might be a string or an object
+const renderContent = (content) => {
+  if (typeof content === 'string') return content;
+  if (typeof content === 'object' && content !== null) {
+    return content.point || content.item || JSON.stringify(content);
+  }
+  return '';
+};
+
 export function TitleAndBulletsLayout({ title, body, bullets, animated }) {
   const containerVariants = {
     hidden: {},
@@ -51,7 +60,7 @@ export function TitleAndBulletsLayout({ title, body, bullets, animated }) {
               style={{ color: 'var(--color-textSecondary)' }}
             >
               <span style={{ color: 'var(--color-primary)' }}>◆</span>
-              <span>{item}</span>
+              <span>{renderContent(item)}</span>
             </motion.li>
           ))}
         </ul>

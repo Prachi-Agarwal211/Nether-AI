@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useUIStore } from '@/store/useUIStore';
 import { usePresentationStore } from '@/store/usePresentationStore';
+
 import Button from '@/components/ui/Button';
 import { Copy, Star, Lightbulb } from 'lucide-react';
 
@@ -43,7 +44,7 @@ const examplePrompts = [
 
 export default function InspirationPanel() {
   const { setActiveView } = useUIStore();
-  const { setTopic } = usePresentationStore();
+  const { presentation, setTopic } = usePresentationStore();
 
   const handleUseTemplate = (template) => {
     setTopic(`${template.title} presentation`);
@@ -117,13 +118,29 @@ export default function InspirationPanel() {
         </div>
       </div>
 
-      {/* Recent Activity Placeholder */}
+      {/* Recent Presentations (dynamic) */}
       <div className="glass-card p-6">
         <h3 className="text-lg font-semibold text-white mb-4">Recent Presentations</h3>
-        <div className="text-center py-8">
-          <p className="text-white/60 text-sm">Your recent presentations will appear here</p>
-          <p className="text-white/40 text-xs mt-2">Start creating to see your history</p>
-        </div>
+        {presentation.recentPresentations && presentation.recentPresentations.length > 0 ? (
+          <div className="space-y-2">
+            {presentation.recentPresentations.slice(0, 8).map((item) => (
+              <div key={item.id} className="flex items-center justify-between p-3 bg-white/5 rounded-md border border-white/10">
+                <div className="min-w-0">
+                  <div className="text-sm text-white/90 truncate">{item.title || item.topic}</div>
+                  <div className="text-[11px] text-white/50">{new Date(item.createdAt).toLocaleString()}</div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button size="sm" variant="secondary" onClick={() => { setTopic(item.topic); setActiveView('idea'); }}>Open</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-white/60 text-sm">No recent presentations yet</p>
+            <p className="text-white/40 text-xs mt-2">Create one to see it here</p>
+          </div>
+        )}
       </div>
     </motion.div>
   );

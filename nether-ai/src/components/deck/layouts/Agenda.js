@@ -2,6 +2,16 @@
 
 import { motion } from 'framer-motion';
 
+// Helper to safely render a value that might be a string or an object
+const renderContent = (content) => {
+  if (typeof content === 'string') return content;
+  if (typeof content === 'object' && content !== null) {
+    // Try to access common keys AI might generate
+    return content.point || content.item || JSON.stringify(content);
+  }
+  return '';
+};
+
 export function Agenda({ title = 'Agenda', items = [], animated }) {
   const containerVariants = {
     hidden: {},
@@ -44,7 +54,7 @@ export function Agenda({ title = 'Agenda', items = [], animated }) {
             >
               {String(index + 1).padStart(2, '0')}
             </span>
-            <span>{item}</span>
+            <span>{renderContent(item)}</span>
           </motion.li>
         ))}
       </ul>

@@ -47,16 +47,16 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="h-screen w-full relative overflow-hidden">
+    <div className="min-h-screen w-full relative">
       <VantaBackground />
       <main
         ref={containerRef}
         onMouseMove={handleMouseMove}
-        className="h-full w-full flex items-center justify-center p-4 md:p-8 relative z-10"
+        className="min-h-screen w-full flex items-center justify-center p-4 md:p-8 relative z-10"
       >
-        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Brand side */}
-          <div className="text-center space-y-5">
+          <div className="text-center space-y-4 md:space-y-5">
             <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur">
               <div className="size-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-sm text-white/70">Live • Beta access</span>
@@ -70,17 +70,17 @@ export default function SignInPage() {
                 width={240}
                 height={240}
                 priority
-                className="opacity-100 brightness-125 contrast-110 drop-shadow-lg scale-125 md:scale-150 will-change-transform pointer-events-none select-none"
+                className="opacity-100 brightness-125 contrast-110 drop-shadow-lg scale-110 sm:scale-125 lg:scale-150 will-change-transform pointer-events-none select-none"
               />
             </div>
-            <p className="text-white/70 text-base md:text-lg">The future of presentation design. Generate strategic angles, blueprints, and slides in minutes.</p>
+            <p className="text-white/70 text-base md:text-lg max-w-md mx-auto">The future of presentation design. Generate strategic angles, blueprints, and slides in minutes.</p>
           </div>
 
           {/* Auth side */}
           <motion.div
             style={{ rotateX, rotateY, transformStyle: 'preserve-3d' }}
             className={`rounded-2xl bg-white/5 border border-white/15 backdrop-blur-xl p-6 md:p-8 shadow-2xl ${
-              view === 'signUp' || view === 'forgotPassword' ? 'max-h-[85vh] overflow-auto' : 'max-h-none overflow-visible'
+              view === 'signUp' || view === 'forgotPassword' ? 'max-h-[85vh] form-scroll-container' : ''
             }`}
           >
             <div style={{ transform: 'translateZ(12px)' }}>

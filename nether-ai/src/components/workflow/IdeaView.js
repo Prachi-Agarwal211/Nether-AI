@@ -1,82 +1,198 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUIStore } from '@/store/useUIStore';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import * as aiService from '@/services/aiService';
-import Button from '@/components/ui/Button';
 import InspirationPanel from './InspirationPanel';
-import { Paperclip, Sparkles } from 'lucide-react';
+import { Plus, Paperclip, Send, X } from 'lucide-react';
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 import toast from 'react-hot-toast';
+import { LoadingSpinner } from '../shared/LoadingSpinner';
 
-// Configure the PDF.js worker to avoid build issues in Next.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
 
-const AngleSkeleton = () => (
-  <div className="rounded-lg border border-white/10 bg-white/5 p-4 animate-pulse">
-    <div className="h-4 w-2/3 bg-white/10 rounded mb-3"></div>
-    <div className="h-3 w-full bg-white/10 rounded mb-2"></div>
-    <div className="h-3 w-5/6 bg-white/10 rounded"></div>
-  </div>
-);
+// Left Sidebar Component
+const ChatHistorySidebar = ({ isSidebarOpen, setIsSidebarOpen, recent, onNewChat, onSelect }) => {
+  return (
+    <>
+      <div className={`fixed inset-y-0 left-0 z-40 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:flex md:flex-col md:w-64 flex-shrink-0`}>
+        <div className="flex flex-col h-full bg-transparent border-r border-white/10 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white text-heading-glow">History</h2>
+            <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-white/70 hover:text-white">
+              <X size={20} />
+            </button>
+          </div>
+          <button onClick={onNewChat} className="pearl-button w-full justify-start gap-2 mb-4 !rounded-lg !px-3 !py-2">
+            <Plus size={16} /> New Chat
+          </button>
+          <div className="flex-1 overflow-y-auto space-y-2">
+            {recent && recent.length > 0 ? (
+              recent.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onSelect?.(item)}
+                  className="w-full p-3 text-sm text-white/80 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer truncate text-left interactive-item"
+                  title={item.title || item.topic}
+                >
+                  {item.title || item.topic}
+                  <div className="text-[10px] text-white/40 mt-1">
+                    {new Date(item.createdAt).toLocaleString()}
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="p-3 text-sm text-white/70 rounded-lg bg-white/5">
+                Your chat history will appear here as you create presentations.
+              </div>
+            )}
+          </div>
+          <div className="text-xs text-white/50 text-center mt-4">Recent chats are stored locally.</div>
+        </div>
+      </div>
+      {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-30 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
+    </>
+  );
+};
+
+const AngleCards = ({ angles, onChooseAngle, isLoading }) => {
+  const containerVariants = {
+    hidden: {},
+    visible: { transition: { staggerChildren: 0.15 } },
+  };
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20, scale: 0.98 },
+    visible: { opacity: 1, y: 0, scale: 1 }
+  };
+
+  return (
+    <motion.div
+      className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      {angles.map((angle) => (
+        <motion.div
+          key={angle.angle_id}
+          variants={itemVariants}
+          whileHover={{ y: -5, scale: 1.02, boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}
+          className="group glass-card p-5 flex flex-col cursor-pointer text-white border-2 border-transparent hover:border-white/20 transition-all duration-300"
+          onClick={() => !isLoading && onChooseAngle(angle)}
+          role="button"
+          tabIndex={0}
+          aria-label={`Choose angle: ${angle.title}`}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && !isLoading) {
+              onChooseAngle(angle);
+            }
+          }}
+        >
+          <h3 className="font-sans font-medium text-white/90 text-md mb-3">{angle.title}</h3>
+          <ul className="space-y-2 list-inside list-disc text-white/80 flex-grow mb-4 pl-1">
+            {(angle.key_points || []).map((point, index) => (
+              <li key={index} className="text-xs leading-relaxed">{point}</li>
+            ))}
+          </ul>
+          <div className="text-center text-xs font-semibold text-peachSoft opacity-80 group-hover:opacity-100 transition-opacity">
+            Choose this Angle →
+          </div>
+        </motion.div>
+      ))}
+    </motion.div>
+  );
+};
 
 export default function IdeaView() {
   const { setLoading, setError, setActiveView } = useUIStore();
-  const { presentation, setTopic, setStrategicAngles, setChosenAngle, setBlueprint, setSlideCount } = usePresentationStore();
-  
-  const { isLoading, error } = useUIStore();
+  const { presentation, setTopic, setStrategicAngles, setChosenAngle, setBlueprint, setSlideCount, resetPresentation, addRecentPresentation } = usePresentationStore();
+  const { isLoading } = useUIStore();
+
   const fileInputRef = useRef(null);
+  const chatEndRef = useRef(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
-  // Cleanup file input on unmount
+  const [messages, setMessages] = useState([
+    { type: 'ai', text: "Welcome to Nether AI. What presentation shall we create today? Describe your topic or upload a document to begin." }
+  ]);
+  const [inputTopic, setInputTopic] = useState('');
+
   useEffect(() => {
-    return () => {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    };
-  }, []);
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  const handleGenerateAngles = async () => {
-    if (!presentation.topic.trim()) {
-      const msg = "Please enter a topic.";
-      setError(msg);
-      toast.error(msg);
-      return;
+  // Sidebar actions (correct scope inside IdeaView)
+  const handleNewChat = () => {
+    resetPresentation();
+    setMessages([{ type: 'ai', text: "Welcome to Nether AI. What presentation shall we create today? Describe your topic or upload a document to begin." }]);
+    setInputTopic('');
+  };
+
+  const handleSelectRecent = (item) => {
+    // Prefill the input and chat with the selected topic
+    if (item?.topic) {
+      setTopic(item.topic);
+      setInputTopic(item.topic);
+      setMessages([
+        { type: 'ai', text: "Welcome back. You can refine or create a new presentation for this topic." },
+        { type: 'user', text: item.topic },
+      ]);
     }
+  };
+
+  const handleSendMessage = async (topicToSend) => {
+    if (!topicToSend.trim()) return;
+
+    setMessages(prev => [...prev, { type: 'user', text: topicToSend }]);
+    setTopic(topicToSend);
+    setInputTopic('');
     setLoading(true);
+
     try {
-      const result = await aiService.generateAngles(presentation.topic, { count: 4, pptOptimized: true });
+      const result = await aiService.generateAngles(topicToSend, { count: 4, pptOptimized: true });
       setStrategicAngles(result.angles);
-      toast.success("Strategic angles generated successfully!");
+      setMessages(prev => [...prev, {
+        type: 'ai',
+        text: "Excellent. I've generated a few strategic angles for your presentation. Which one resonates the most with you?"
+      }, {
+        type: 'angles',
+        angles: result.angles
+      }]);
+      toast.success("Strategic angles generated!");
     } catch (e) {
-      setError(e.message);
-      toast.error(`Failed to generate angles: ${e.message}`);
+      const errorMsg = `Failed to generate angles: ${e.message}`;
+      setError(errorMsg);
+      setMessages(prev => [...prev, { type: 'ai', text: `Sorry, I encountered an error: ${e.message}` }]);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
   };
-  
+
   const handleChooseAngle = async (angle) => {
     setLoading(true);
     setChosenAngle(angle);
+    setMessages(prev => [...prev, { type: 'ai', text: `Great choice! Generating a blueprint based on the "${angle.title}" angle.` }]);
+
     try {
-      const result = await aiService.generateBlueprint(presentation.topic, angle, presentation.slideCount, { /* pass prefs */ });
+      const result = await aiService.generateBlueprint(presentation.topic, angle, presentation.slideCount);
       setBlueprint(result);
+      // Record recent presentation
+      addRecentPresentation({ title: angle.title, topic: presentation.topic });
       setActiveView('outline');
       toast.success("Blueprint generated successfully!");
-    } catch(e) {
-      setError(e.message);
-      toast.error(`Failed to generate blueprint: ${e.message}`);
+    } catch (e) {
+      const errorMsg = `Failed to generate blueprint: ${e.message}`;
+      setError(errorMsg);
+      setMessages(prev => [...prev, { type: 'ai', text: `Sorry, I couldn't generate the blueprint: ${e.message}` }]);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFileSelect = () => {
-    fileInputRef.current?.click();
   };
 
   const handleFileChange = async (event) => {
@@ -85,206 +201,154 @@ export default function IdeaView() {
 
     setLoading(true);
     setError('');
+    const toastId = toast.loading('Processing document...');
     try {
       let text = '';
       if (file.type === 'application/pdf') {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let fullText = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          fullText += content.items.map(item => item.str).join(' ') + '\n';
-        }
-        text = fullText.trim();
+        text = (await Promise.all(Array.from({ length: pdf.numPages }, (_, i) => pdf.getPage(i + 1).then(page => page.getTextContent()))))
+          .map(content => content.items.map(item => item.str).join(' ')).join('\n');
       } else if (file.name.toLowerCase().endsWith('.docx')) {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
-        text = (result.value || '').trim();
+        text = result.value || '';
       } else if (file.type.startsWith('text/') || file.name.toLowerCase().endsWith('.md')) {
-        text = (await file.text()).trim();
+        text = await file.text();
       } else {
         throw new Error('Unsupported file. Please use PDF, DOCX, or TXT files.');
       }
 
-      if (!text) throw new Error('No text could be extracted from the file.');
+      if (!text.trim()) throw new Error('No text could be extracted from the file.');
+      
+      toast.dismiss(toastId);
+      handleSendMessage(text.trim());
 
-      const prefix = presentation.topic ? `${presentation.topic}\n\n--- Document Content ---\n` : '';
-      setTopic(`${prefix}${text}`);
-      toast.success("Document uploaded and processed successfully!");
     } catch (e) {
       setError(`Error parsing file: ${e.message}`);
-      toast.error(`File upload failed: ${e.message}`);
+      toast.error(`File upload failed: ${e.message}`, { id: toastId });
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
-
+    
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
-    >
-      <div className="text-center mb-10">
-        <h1 className="font-sans font-medium text-white/90 text-3xl md:text-4xl mb-2">Start with an Idea</h1>
-        <p id="topic-description" className="text-base text-white/70">Describe your topic or upload a document. Our AI will generate strategic angles for you.</p>
-        <p id="generate-description" className="sr-only">Click to generate strategic angles for your presentation topic</p>
-        <div className="mt-6">
-          <Button onClick={() => setActiveView('templates')} variant="secondary" className="justify-center">
-            <Sparkles size={16} className="mr-2" />
-            Browse Templates
-          </Button>
+    <div className="h-full w-full flex overflow-hidden transition-opacity duration-300">
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center h-full">
+          <LoadingSpinner />
+          <p className="mt-4 text-gray-600">Generating your presentation blueprint...</p>
         </div>
-      </div>
+      ) : (
+        <div className="h-full w-full flex overflow-hidden">
+          <ChatHistorySidebar 
+            isSidebarOpen={isSidebarOpen} 
+            setIsSidebarOpen={setIsSidebarOpen}
+            recent={presentation.recentPresentations}
+            onNewChat={handleNewChat}
+            onSelect={handleSelectRecent}
+          />
 
-      {/* Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-        {/* Left Column: Generator */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-        >
-          <div className="relative bg-black/30 border border-white/10 rounded-xl p-6 mb-6">
-            <textarea
-              value={presentation.topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g., The future of renewable energy..."
-              className="w-full h-32 bg-transparent text-lg text-white placeholder-white/40 resize-none outline-none p-2"
-              aria-label="Presentation topic input"
-              aria-describedby="topic-description"
-            />
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden"
-              accept=".pdf,.docx,.txt,.md"
-            />
-            {/* Controls row */}
-            <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="flex-1">
-                <label className="block text-xs uppercase tracking-wider text-white/60 mb-2">Slide count</label>
-                <div className="flex items-center gap-3">
+          <main className="flex-1 flex flex-col h-full relative">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <AnimatePresence initial={false}>
+                {messages.map((msg, index) => (
+                  <motion.div 
+                    key={index} 
+                    initial={{ opacity: 0, y: 20 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    transition={{ duration: 0.3, delay: 0.1 * index }} 
+                    layout
+                  >
+                    {msg.type === 'user' ? (
+                      <div className="flex justify-end">
+                        <div className="max-w-xl p-4 rounded-xl bg-gradient-to-r from-peachSoft/20 to-mauveLight/20 border border-peachSoft/30 text-white/90">
+                          {msg.text}
+                        </div>
+                      </div>
+                    ) : msg.type === 'ai' ? (
+                      <div className="flex justify-start">
+                        <div className="max-w-xl p-4 rounded-xl bg-white/5 border border-white/15 text-white/90">
+                          {msg.text}
+                        </div>
+                      </div>
+                    ) : msg.type === 'angles' ? (
+                      <AngleCards angles={msg.angles} onChooseAngle={handleChooseAngle} isLoading={isLoading} />
+                    ) : null}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              {isLoading && messages.slice(-1)[0]?.type === 'user' && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/15 text-white/90">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-white/80 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
+                      <div className="w-2 h-2 bg-white/80 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
+                      <div className="w-2 h-2 bg-white/80 rounded-full animate-pulse"></div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <div className="px-6 pb-6">
+              <div className={`glass-card p-3 transition-all duration-300 ${isInputFocused ? 'input-bar-focus' : ''}`}>
+                <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(inputTopic); }} className="flex items-center gap-3">
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.docx,.txt,.md" />
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="p-3 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition" title="Attach document">
+                    <Paperclip size={18} />
+                  </button>
                   <input
-                    type="range"
-                    min={6}
-                    max={30}
-                    step={1}
-                    value={presentation.slideCount}
-                    onChange={(e) => setSlideCount(Number(e.target.value))}
-                    className="w-full accent-white"
-                    aria-label="Number of slides"
-                    aria-valuemin={6}
-                    aria-valuemax={30}
-                    aria-valuenow={presentation.slideCount}
+                    value={inputTopic}
+                    onChange={(e) => setInputTopic(e.target.value)}
+                    onFocus={() => setIsInputFocused(true)}
+                    onBlur={() => setIsInputFocused(false)}
+                    placeholder="Describe your presentation topic..."
+                    className="w-full bg-transparent text-white placeholder-white/40 outline-none"
+                    disabled={isLoading}
                   />
-                  <div className="w-12 text-right text-sm text-white/80">{presentation.slideCount}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleFileSelect}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/15 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 transition"
-                  title="Attach document"
-                  aria-label="Attach document"
-                >
-                  <Paperclip size={18} />
-                </button>
-                <Button
-                  onClick={handleGenerateAngles}
-                  disabled={isLoading}
-                  className="pearl-button cta-glow"
-                  aria-describedby="generate-description"
-                >
-                  {isLoading ? 'Generating…' : 'Generate Angles'}
-                </Button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <label className="text-xs text-white/60">Slides:</label>
+                    <input
+                      type="range"
+                      min={6}
+                      max={30}
+                      step={1}
+                      value={presentation.slideCount}
+                      onChange={(e) => setSlideCount(Number(e.target.value))}
+                      className="w-24 accent-white"
+                      disabled={isLoading}
+                      aria-label="Number of slides"
+                    />
+                    <span className="w-8 text-center text-sm text-white/80">{presentation.slideCount}</span>
+                  </div>
+                  <motion.button 
+                    type="submit" 
+                    disabled={isLoading || !inputTopic.trim()} 
+                    className="pearl-button !p-3 !rounded-full"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <Send size={18} />
+                  </motion.button>
+                </form>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </main>
 
-        {/* Right Column: Inspiration Panel */}
-        <InspirationPanel />
-      </div>
-
-      {/* Error Message */}
-      {error && <div className="mb-8 text-center text-red-400 bg-red-500/10 p-4 rounded-lg border border-red-500/20">{error}</div>}
-
-      {/* Angle Cards Section with generative stagger */}
-      <AnimatePresence>
-        {presentation.strategicAngles.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.5 }}
-            className="mt-12"
+          {/* Right-side Inspiration Panel (now permanent on desktop) */}
+          <motion.aside
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="lg:block w-96 flex-shrink-0 h-full overflow-y-auto p-4"
           >
-            <h2 className="text-2xl font-semibold text-white mb-6 text-center">Choose Your Strategic Angle</h2>
-            <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 gap-6"
-              variants={{
-                hidden: {},
-                visible: { transition: { staggerChildren: 0.15 } },
-              }}
-              initial="hidden"
-              animate="visible"
-            >
-              {presentation.strategicAngles.map((angle) => (
-                <motion.div
-                  key={angle.angle_id}
-                  variants={{ hidden: { opacity: 0, y: 20, scale: 0.98 }, visible: { opacity: 1, y: 0, scale: 1 } }}
-                  whileHover={{ y: -8, scale: 1.03, boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
-                  className="glass-card p-6 flex flex-col cursor-pointer text-white border-2 border-transparent hover:border-white/20 transition-all duration-300"
-                  onClick={() => !isLoading && handleChooseAngle(angle)}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Choose angle: ${angle.title}`}
-                  onKeyDown={(e) => {
-                    if ((e.key === 'Enter' || e.key === ' ') && !isLoading) {
-                      handleChooseAngle(angle);
-                    }
-                  }}
-                >
-                  <h3 className="font-sans font-medium text-white/90 text-xl mb-4">{angle.title}</h3>
-                  <ul className="space-y-3 list-inside list-disc text-white/80 flex-grow mb-6 pl-2">
-                    {(angle.key_points || []).map((point, index) => (
-                      <li key={index} className="text-sm leading-relaxed">{point}</li>
-                    ))}
-                  </ul>
-                  <Button disabled={isLoading} className="mt-auto w-full justify-center pearl-button">
-                    Choose this Angle
-                  </Button>
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Show skeletons while loading and no angles yet */}
-      {isLoading && !presentation.strategicAngles.length && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mt-12"
-        >
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-semibold text-white mb-2">Generating Strategic Angles...</h2>
-            <p className="text-white/60">Our AI is analyzing your topic to create the best presentation angles</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <AngleSkeleton />
-            <AngleSkeleton />
-            <AngleSkeleton />
-            <AngleSkeleton />
-          </div>
-        </motion.div>
+            <InspirationPanel />
+          </motion.aside>
+        </div>
       )}
-    </motion.div>
+    </div>
   );
 }

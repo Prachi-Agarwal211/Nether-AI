@@ -44,22 +44,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* --- Mother-of-Pearl Text Utility --- */
-.mother-of-pearl-text {
-  background: linear-gradient(135deg,
-    rgba(255,255,255,0.96) 0%,
-    rgba(236,241,250,0.96) 25%,
-    rgba(220,230,238,0.96) 45%,
-    rgba(255,255,255,0.96) 60%,
-    rgba(235,242,250,0.96) 80%,
-    rgba(255,255,255,0.96) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-shadow: 0 0 16px rgba(255,255,255,0.06);
-}
-
 /* --- Spotlight Cursor Effect --- */
 body::before {
   content: '';
@@ -76,10 +60,12 @@ body::before {
   transition: background 0.1s ease-out;
 }
 
-/* Subtle HUD grid overlay */
-/* grid overlay removed for cleaner background */
+/* --- [NEW] Enhanced Typography Utilities --- */
+.text-heading-glow {
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
 
-/* --- [RESTORED] Mother of Pearl Text Effect --- */
+/* --- Mother of Pearl Text Effect --- */
 @keyframes mother-of-pearl-sheen {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -95,7 +81,7 @@ body::before {
   text-shadow: 0 0 2px rgba(255, 255, 255, 0.5);
 }
 
-/* --- [RESTORED] Pearl & Primary Button Styles --- */
+/* --- Pearl & Primary Button Styles --- */
 @keyframes button-sheen {
   0% { transform: translateX(-40%) rotate(20deg); opacity: 0.0; }
   10% { opacity: 0.7; }
@@ -145,18 +131,6 @@ body::before {
   outline-offset: 2px;
 }
 
-/* Screen reader only text */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
 .pearl-button::after {
   content: '';
   position: absolute; top: -150%; left: -50%; width: 60%; height: 400%;
@@ -211,17 +185,35 @@ body::before {
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-/* --- Enhanced Glassmorphism Card Utilities --- */
+/* --- [NEW & IMPROVED] Enhanced Glassmorphism & Interaction --- */
+
 .glass-card {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   box-shadow: 0 8px 32px 0 var(--glass-shadow);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border-radius: 1rem;
+  border-radius: 1.25rem; /* Increased border radius for a softer look */
+  /* [NEW] Subtle inner glow for panel definition */
+  box-shadow: 0 8px 32px 0 var(--glass-shadow), inset 0 0 10px rgba(255, 255, 255, 0.03);
 }
 
-/* Enhanced floating panel with depth */
+/* [NEW] Utility for interactive elements */
+.interactive-item {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+.interactive-item:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 225, 198, 0.1);
+}
+
+/* [NEW] Style for the input bar focus state */
+.input-bar-focus {
+  box-shadow: 0 0 25px rgba(255, 225, 198, 0.2), 0 8px 32px 0 var(--glass-shadow), inset 0 0 10px rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 225, 198, 0.3);
+}
+
+/* --- Enhanced Glassmorphism Card Utilities --- */
 .glass-panel {
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -294,5 +286,33 @@ body::before {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 *::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* [NEW] Utility for scrollable form container */
+.form-scroll-container {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* Firefox */
+.form-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.35) rgba(255, 255, 255, 0.08);
+}
+
+/* WebKit (Chrome, Edge, Safari) */
+.form-scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+.form-scroll-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+}
+.form-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+.form-scroll-container::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.35);
 }

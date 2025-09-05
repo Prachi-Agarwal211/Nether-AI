@@ -1,0 +1,166 @@
+ /// <reference types="next" />
+/// <reference types="next/image-types/global" />
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/building-your-application/configuring/typescript for more information.
+ (this is my D:\Nether AI\nether-ai\next-env.d.ts)
+
+// API service implementation
+export const api = {
+  // Add your API methods here
+};
+(this is my D:\Nether AI\nether-ai\src\services\api.ts)
+
+import { useStore } from './useStore';
+import { api } from '../services/api';
+
+export const incrementCount = () => {
+  useStore.setState((state) => {
+    state.count += 1;
+  });
+};
+
+export const resetCount = () => {
+  useStore.setState((state) => {
+    state.count = 0;
+  });
+};
+(this is my D:\Nether AI\nether-ai\src\stores\storeServices.ts)
+
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
+import type { StoreApi } from 'zustand';
+
+type StoreState = {
+  // Define your state shape here
+  count: number;
+};
+
+const initialState: StoreState = {
+  count: 0,
+};
+
+export const useStore = create<StoreState>()(
+  immer((set) => ({
+    ...initialState,
+  }))
+);
+(this is my D:\Nether AI\nether-ai\src\stores\useStore.ts)
+
+```
+nether-ai/
+├── .vscode/
+│   └── settings.json
+├── public/
+│   ├── images/
+│   │   ├── logo.png
+│   │   ├── next.svg
+│   │   ├── vercel.svg
+│   │   ├── file.svg
+│   │   └── globe.svg
+│   ├── manifest.json
+│   └── sw.js
+├── src/
+│   ├── app/
+│   │   ├── (main)/
+│   │   │   └── dashboard/
+│   │   │       ├── layout.js
+│   │   │       └── page.js
+│   │   ├── api/
+│   │   │   └── ai/
+│   │   │       └── route.js
+│   │   ├── presenter/
+│   │   │   └── [id]/
+│   │   │       └── page.js
+│   │   ├── share/
+│   │   │   └── [shareId]/
+│   │   │       ├── SharePresentationClient.js
+│   │   │       └── page.js
+│   │   ├── forgot-password/
+│   │   │   └── page.js
+│   │   ├── update-password/
+│   │   │   └── page.js
+│   │   ├── layout.js
+│   │   └── page.js
+│   ├── components/
+│   │   ├── auth/
+│   │   │   └── AuthForm.js
+│   │   ├── deck/
+│   │   │   ├── layouts/
+│   │   │   │   ├── Agenda.js
+│   │   │   │   ├── ComparisonTable.js
+│   │   │   │   ├── ContactInfoLayout.js
+│   │   │   │   ├── DataChart.js
+│   │   │   │   ├── FallbackLayout.js
+│   │   │   │   ├── FeatureGrid.js
+│   │   │   │   ├── FullBleedImageLayout.js
+│   │   │   │   ├── KpiGrid.js
+│   │   │   │   ├── ProcessDiagram.js
+│   │   │   │   ├── Quote.js
+│   │   │   │   ├── SectionHeader.js
+│   │   │   │   ├── TeamMembers.js
+│   │   │   │   ├── Timeline.js
+│   │   │   │   ├── TitleAndBulletsLayout.js
+│   │   │   │   ├── TitleSlide.js
+│   │   │   │   ├── TwoColumn.js
+│   │   │   │   └── index.js
+│   │   │   ├── DeckAICopilot.js
+│   │   │   ├── DeckBackground.js
+│   │   │   ├── ResponsiveCanvas.js
+│   │   │   ├── SlideRenderer.js
+│   │   │   └── ThemeProvider.js
+│   │   ├── shared/
+│   │   │   ├── Footer.js
+│   │   │   ├── Header.js
+│   │   │   └── VantaBackground.js
+│   │   ├── ui/
+│   │   │   ├── Button.js
+│   │   │   ├── DesignSystemEditor.js
+│   │   │   └── Input.js
+│   │   └── workflow/
+│   │       ├── AICopilotPanel.js
+│   │       ├── BlueprintDisplay.js
+│   │       ├── DeckView.js
+│   │       ├── IdeaView.js
+│   │       ├── InspirationPanel.js
+│   │       ├── OutlineView.js
+│   │       ├── StoryArc.js
+│   │       └── TemplatesView.js
+│   ├── core/
+│   │   ├── ai-config.js
+│   │   ├── ai.js
+│   │   ├── backgrounds.js
+│   │   ├── image-generation.js
+│   │   └── themeUtils.js
+│   ├── services/
+│   │   ├── aiService.js
+│   │   ├── api.ts
+│   │   └── supabaseService.js
+│   ├── store/
+│   │   ├── usePresentationStore.js
+│   │   └── useUIStore.js
+│   ├── stores/
+│   │   ├── storeServices.ts
+│   │   └── useStore.ts
+│   ├── styles/
+│   │   └── globals.css
+│   └── utils/
+│       └── supabase-client.js
+├── tests/
+│   ├── components/
+│   │   └── master-layouts.test.jsx
+│   └── schemas/
+│       └── design-brief.test.js
+├── .eslintrc.json
+├── .gitignore
+├── eslint.config.mjs
+├── jsconfig.json
+├── LICENSE
+├── next.config.mjs
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── README.md
+├── SUPABASE_SCHEMA_AND_SQL.txt
+└── tailwind.config.js
+```

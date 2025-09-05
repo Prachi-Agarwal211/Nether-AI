@@ -29,9 +29,8 @@ export default function OutlineView() {
 
   const handleDesignPresentation = async () => {
     setLoading(true);
-    setActiveView('deck'); // Optimistically show deck while slides stream in
+    setActiveView('deck');
     const slideCount = presentation?.blueprint?.slides?.length || 0;
-    // Pre-fill placeholders to guarantee array length for the UI
     setSlideRecipes(Array(slideCount).fill(null));
 
     await aiService.generateSlideRecipesStream({
@@ -40,12 +39,10 @@ export default function OutlineView() {
       angle: presentation.chosenAngle,
       onEvent: (event) => {
         if (event.type === 'design_system') {
-          // store the theme/design system for use by Deck/ThemeProvider in future
           if (setDesignSystem) setDesignSystem(event.designSystem);
           else setPresentation({ designSystem: event.designSystem });
         } else if (event.type === 'recipe') {
           if (typeof event.index === 'number') {
-            // Highly reactive update using Zustand's core setState to avoid stale closures
             usePresentationStore.setState((state) => {
               const current = state.presentation?.slideRecipes || [];
               const next = current && current.length ? [...current] : Array(slideCount).fill(null);
@@ -64,13 +61,6 @@ export default function OutlineView() {
         }
       },
       onDone: () => {
-        // Optional compaction if desired to remove null placeholders:
-        // usePresentationStore.setState((state) => ({
-        //   presentation: {
-        //     ...state.presentation,
-        //     slideRecipes: state.presentation.slideRecipes.filter(Boolean),
-        //   },
-        // }));
         setLoading(false);
         toast.success("Presentation designed successfully!");
       },
@@ -78,9 +68,9 @@ export default function OutlineView() {
   };
 
   return (
-    <div className="w-full max-w-full mx-auto h-[calc(100vh-150px)] relative">
+    <div className="w-full h-full relative bg-black/20 p-4">
       {isLoading && (
-        <div className="absolute top-0 left-0 w-full h-1 overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 overflow-hidden z-20">
           <motion.div
             className="h-full bg-white/70"
             initial={{ x: '-50%' }}
@@ -90,15 +80,17 @@ export default function OutlineView() {
           />
         </div>
       )}
-      <PanelGroup direction="horizontal">
-        <Panel defaultSize={65} minSize={40}>
-          <div className="h-full overflow-y-auto pr-6 p-4">
+      <PanelGroup direction="horizontal" className="h-full">
+        <Panel defaultSize={60} minSize={40}>
+          <div className="h-full w-full pr-2">
             <StoryArc blueprint={presentation.blueprint} />
           </div>
         </Panel>
-        <PanelResizeHandle className="w-2 bg-white/10 hover:bg-white/20 transition-colors" />
-        <Panel defaultSize={35} minSize={30}>
-          <div className="h-full pl-6 p-4">
+        <PanelResizeHandle className="w-2.5 flex items-center justify-center bg-transparent group">
+            <div className="w-1 h-16 bg-white/10 group-hover:bg-white/20 rounded-full transition-colors" />
+        </PanelResizeHandle>
+        <Panel defaultSize={40} minSize={30}>
+          <div className="h-full w-full pl-2">
             <AICopilotPanel
               onRefine={handleRefineBlueprint}
               onFinalize={handleDesignPresentation}
