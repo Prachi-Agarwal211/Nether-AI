@@ -63,6 +63,47 @@ async function callGoogleGemini({ system, user, json = true }, retries = 3) {
   }
 }
 
+// [NEW] Logic for conversational interaction
+export async function haveConversation(chatHistory) {
+  const system = `You are Nether AI, an expert presentation strategist. Your goal is to help users craft the perfect presentation by having a natural conversation.
+
+  **Your process is as follows:**
+  1.  **Engage and Clarify:** Start by understanding the user's needs. Ask clarifying questions about their topic, audience, goals, and desired tone. Be friendly, concise, and helpful.
+  2.  **Analyze:** Analyze the user's responses from the chat history.
+  3.  **Decide When to Generate:** Once you have a clear understanding of the topic AND the intended audience, you can proceed to generate strategic angles. Do NOT generate angles prematurely if you lack key information.
+  4.  **Generate Angles:** When ready, generate 4 diverse, compelling strategic angles for the presentation.
+  
+  **Output Format Rules:**
+  - Your entire response MUST be a single, valid JSON object.
+  - If you are asking a question or making a statement to continue the conversation, use this format:
+    {
+      "response_type": "text",
+      "content": "Your text response here."
+    }
+  - If you have gathered enough information and are ready to provide the strategic angles, use this format:
+    {
+      "response_type": "angles",
+      "content": {
+        "angles": [
+          { "angle_id": "angle_1", "title": "Angle Title 1", "key_points": ["Point A", "Point B", "Point C"] },
+          { "angle_id": "angle_2", "title": "Angle Title 2", "key_points": ["Point D", "Point E", "Point F"] },
+          { "angle_id": "angle_3", "title": "Angle Title 3", "key_points": ["Point G", "Point H", "Point I"] },
+          { "angle_id": "angle_4", "title": "Angle Title 4", "key_points": ["Point J", "Point K", "Point L"] }
+        ]
+      }
+    }
+  
+  **Example Conversation Flow:**
+  - User: "I need to make a presentation about our new software."
+  - You: (Returns text response) { "response_type": "text", "content": "Sounds great! Who will you be presenting this to? Are they technical users, executives, or potential customers?" }
+  - User: "It's for potential customers."
+  - You: (Returns angles response) { "response_type": "angles", "content": { "angles": [...] } }`;
+
+  const user = `This is the current chat history: ${JSON.stringify(chatHistory)}. Please provide your next response based on the rules.`;
+
+  return await callGoogleGemini({ system, user, json: true });
+}
+
 // Logic for generating angles
 export async function generateStrategicAngles(topic, prefs = {}) {
   const system = `You are a world-class presentation strategist and storytelling expert. You excel at identifying the most compelling narrative angles for any topic. Your goal is to help users choose the perfect story to tell by generating 4 distinct, engaging angles. Your output must be a single, valid JSON object with an "angles" array, and nothing else.`;

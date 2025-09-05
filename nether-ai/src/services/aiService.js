@@ -3,6 +3,17 @@
 // This service is responsible for all interactions with our own /api/ai endpoint.
 // It returns data or throws an error. It does not set state.
 
+// --- [NEW] CONVERSATIONAL ACTION ---
+
+export async function continueConversation(chatHistory) {
+  const response = await fetch("/api/ai", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "converse", payload: { chatHistory } }),
+  });
+  if (!response.ok) throw new Error((await response.json()).error || "Failed to get AI response");
+  return response.json();
+}
+
 // --- NON-STREAMING ACTIONS (Remain the same) ---
 
 export async function generateAngles(topic, prefs) {

@@ -125,7 +125,6 @@ export default function IdeaView() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Sidebar actions (correct scope inside IdeaView)
   const handleNewChat = () => {
     resetPresentation();
     setMessages([{ type: 'ai', text: "Welcome to Nether AI. What presentation shall we create today? Describe your topic or upload a document to begin." }]);
@@ -133,7 +132,6 @@ export default function IdeaView() {
   };
 
   const handleSelectRecent = (item) => {
-    // Prefill the input and chat with the selected topic
     if (item?.topic) {
       setTopic(item.topic);
       setInputTopic(item.topic);
@@ -145,26 +143,34 @@ export default function IdeaView() {
   };
 
   const handleSendMessage = async (topicToSend) => {
-    if (!topicToSend.trim()) return;
+    if (!topicToSend.trim() || isLoading) return;
 
-    setMessages(prev => [...prev, { type: 'user', text: topicToSend }]);
-    setTopic(topicToSend);
+    const newMessages = [...messages, { type: 'user', text: topicToSend }];
+    setMessages(newMessages);
+    setTopic(topicToSend); // Set topic early for context
     setInputTopic('');
     setLoading(true);
+    setError('');
 
     try {
-      const result = await aiService.generateAngles(topicToSend, { count: 4, pptOptimized: true });
-      setStrategicAngles(result.angles);
-      setMessages(prev => [...prev, {
-        type: 'ai',
-        text: "Excellent. I've generated a few strategic angles for your presentation. Which one resonates the most with you?"
-      }, {
-        type: 'angles',
-        angles: result.angles
-      }]);
-      toast.success("Strategic angles generated!");
+      const result = await aiService.continueConversation(newMessages);
+      
+      if (result.response_type === 'text') {
+        setMessages(prev => [...prev, { type: 'ai', text: result.content }]);
+      } else if (result.response_type === 'angles') {
+        const angles = result.content.angles;
+        setStrategicAngles(angles);
+        setMessages(prev => [...prev, {
+          type: 'ai',
+          text: "Excellent. I've generated a few strategic angles for your presentation. Which one resonates the most with you?"
+        }, {
+          type: 'angles',
+          angles: angles
+        }]);
+        toast.success("Strategic angles generated!");
+      }
     } catch (e) {
-      const errorMsg = `Failed to generate angles: ${e.message}`;
+      const errorMsg = `Failed to get AI response: ${e.message}`;
       setError(errorMsg);
       setMessages(prev => [...prev, { type: 'ai', text: `Sorry, I encountered an error: ${e.message}` }]);
       toast.error(errorMsg);
@@ -181,7 +187,6 @@ export default function IdeaView() {
     try {
       const result = await aiService.generateBlueprint(presentation.topic, angle, presentation.slideCount);
       setBlueprint(result);
-      // Record recent presentation
       addRecentPresentation({ title: angle.title, topic: presentation.topic });
       setActiveView('outline');
       toast.success("Blueprint generated successfully!");
@@ -222,23 +227,24 @@ export default function IdeaView() {
       if (!text.trim()) throw new Error('No text could be extracted from the file.');
       
       toast.dismiss(toastId);
-      handleSendMessage(text.trim());
+      // Use the extracted text as the first message in the conversation
+      handleSendMessage(`Based on the attached document, here's the topic: ${text.trim().substring(0, 1500)}...`);
 
     } catch (e) {
       setError(`Error parsing file: ${e.message}`);
       toast.error(`File upload failed: ${e.message}`, { id: toastId });
-    } finally {
       setLoading(false);
+    } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
     
   return (
     <div className="h-full w-full flex overflow-hidden transition-opacity duration-300">
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center h-full">
+      {isLoading && !messages.length ? ( // Show full-page loader only on initial load
+        <div className="flex flex-col items-center justify-center h-full w-full">
           <LoadingSpinner />
-          <p className="mt-4 text-gray-600">Generating your presentation blueprint...</p>
+          <p className="mt-4 text-gray-600">Initializing Nether AI...</p>
         </div>
       ) : (
         <div className="h-full w-full flex overflow-hidden">
@@ -280,7 +286,7 @@ export default function IdeaView() {
                 ))}
               </AnimatePresence>
               {isLoading && messages.slice(-1)[0]?.type === 'user' && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start mt-6">
                   <div className="p-4 rounded-xl bg-white/5 border border-white/15 text-white/90">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-white/80 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
@@ -338,7 +344,6 @@ export default function IdeaView() {
             </div>
           </main>
 
-          {/* Right-side Inspiration Panel (now permanent on desktop) */}
           <motion.aside
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}

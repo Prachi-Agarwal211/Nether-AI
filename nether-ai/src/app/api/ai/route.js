@@ -133,6 +133,10 @@ export async function POST(req) {
 
     let result;
     switch (action) {
+      case 'converse':
+        result = await AiCore.haveConversation(payload.chatHistory);
+        break;
+        
       case 'generate_angles':
         result = await AiCore.generateStrategicAngles(payload.topic, payload);
         break;
