@@ -20,8 +20,8 @@ export function FeatureGrid({ title, features = [], animated, recipe }) {
     return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
   };
 
-  const accent1 = recipe?.theme_runtime?.accent || 'var(--accent-primary)';
-  const accent2 = recipe?.theme_runtime?.secondary_accent || 'var(--accent-secondary)';
+  const accent1 = recipe?.theme_runtime?.accent || 'var(--color-primary-accent)';
+  const accent2 = recipe?.theme_runtime?.secondary_accent || 'var(--color-secondary-accent)';
 
   return (
     <motion.div
@@ -34,7 +34,7 @@ export function FeatureGrid({ title, features = [], animated, recipe }) {
         <motion.h2 
           className="text-5xl font-bold mb-12 text-center" 
           variants={animated ? itemVariants : undefined}
-          style={{ color: 'var(--color-textPrimary)' }}
+          style={{ color: 'var(--color-text-primary)' }}
         >
           {title}
         </motion.h2>
@@ -46,19 +46,28 @@ export function FeatureGrid({ title, features = [], animated, recipe }) {
             <motion.div
               key={i}
               variants={animated ? itemVariants : undefined}
-              className="group relative p-6 glass-card overflow-hidden"
+              className="group relative p-6 rounded-xl backdrop-blur overflow-hidden"
+              style={{
+                background: 'var(--token-glassBackgroundColor)',
+                border: '1px solid var(--token-glassBorderColor)'
+              }}
             >
               <div
                 className="absolute -inset-px rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                style={{ background: `radial-gradient(400px at center, ${accent1}20, transparent)`}}
+                style={{ background: `radial-gradient(400px at center, ${accent1}20, transparent)` }}
               />
 
               <div className="relative z-10">
-                <div className="p-3 w-min rounded-lg mb-4" style={{background: `linear-gradient(135deg, ${accent1}40, ${accent2}40)`}}>
+                <div 
+                  className="p-3 w-min rounded-lg mb-4" 
+                  style={{
+                    background: `linear-gradient(135deg, ${accent1}40, ${accent2}40)`
+                  }}
+                >
                   <Icon className="w-6 h-6" style={{ color: accent1 }} />
                 </div>
-                <h3 className="text-2xl font-bold mb-3">{feature.title}</h3>
-                <p className="text-text-secondary">{feature.description}</p>
+                <h3 className="text-2xl font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>{feature.title}</h3>
+                <p style={{ color: 'var(--color-text-secondary)' }}>{feature.description}</p>
               </div>
             </motion.div>
           );

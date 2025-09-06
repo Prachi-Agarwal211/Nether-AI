@@ -187,6 +187,71 @@ on public.profiles for update
 using (id = auth.uid())
 with check (id = auth.uid());
 
+-- === themes table (for storing generated design briefs) ===
+CREATE TABLE IF NOT EXISTS public.themes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  theme_name TEXT NOT NULL,
+  design_brief JSONB NOT NULL,
+  preview_colors JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  user_id UUID REFERENCES auth.users(id)
+);
+
+-- RLS Policies for the themes table
+ALTER TABLE public.themes ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can read themes to browse the library
+CREATE POLICY "themes_select_all" 
+ON public.themes FOR SELECT
+USING (true);
+
+-- Authenticated users can insert new themes
+CREATE POLICY "themes_insert_own" 
+ON public.themes FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+-- === themes table (for theme library) ===
+create table if not exists public.themes_library (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.profiles(id),
+  theme_name text not null,
+  design_brief jsonb not null,
+  preview_colors jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists themes_user_idx on public.themes_library (user_id);
+create index if not exists themes_created_idx on public.themes_library (created_at desc);
+
+drop trigger if exists trg_themes_set_user on public.themes_library;
+create trigger trg_themes_set_user
+  before insert on public.themes_library
+  for each row execute procedure public.set_user_id();
+
+alter table public.themes_library enable row level security;
+
+drop policy if exists "themes_select_all" on public.themes_library;
+create policy "themes_select_all"
+on public.themes_library for select
+using (true);  -- Publicly readable
+
+drop policy if exists "themes_insert_own" on public.themes_library;
+create policy "themes_insert_own"
+on public.themes_library for insert
+with check (user_id = auth.uid());
+
+drop policy if exists "themes_update_own" on public.themes_library;
+create policy "themes_update_own"
+on public.themes_library for update
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
+
+drop policy if exists "themes_delete_own" on public.themes_library;
+create policy "themes_delete_own"
+on public.themes_library for delete
+using (user_id = auth.uid());
+
 Storage bucket (presentation-assets) and policies
 - Create the bucket via Dashboard: Storage > Buckets > New bucket
   - id/name: presentation-assets, Public ON
@@ -209,6 +274,8 @@ Paste and run in SQL Editor; it reports existence of tables, columns, triggers, 
 select 'presentations table exists' as check, to_regclass('public.presentations') is not null as ok;
 select 'assets table exists' as check, to_regclass('public.assets') is not null as ok;
 select 'profiles table exists' as check, to_regclass('public.profiles') is not null as ok;
+select 'themes table exists' as check, to_regclass('public.themes') is not null as ok;
+select 'themes_library table exists' as check, to_regclass('public.themes_library') is not null as ok;
 
 -- Required columns
 select 'presentations columns ok' as check,
@@ -225,6 +292,16 @@ select 'profiles columns ok' as check,
   (select count(*) from information_schema.columns
    where table_schema='public' and table_name='profiles'
      and column_name in ('id','user_id','email','first_name','last_name','username','phone','date_of_birth','created_at','updated_at')) = 10 as ok;
+
+select 'themes columns ok' as check,
+  (select count(*) from information_schema.columns
+   where table_schema='public' and table_name='themes'
+     and column_name in ('id','theme_name','design_brief','preview_colors','created_at','user_id')) = 6 as ok;
+
+select 'themes_library columns ok' as check,
+  (select count(*) from information_schema.columns
+   where table_schema='public' and table_name='themes_library'
+     and column_name in ('id','user_id','theme_name','design_brief','preview_colors','created_at')) = 6 as ok;
 
 -- Triggers present
 select 'presentations updated_at trigger' as check,
@@ -267,6 +344,14 @@ select 'profiles set_ids trigger' as check,
     where n.nspname='public' and c.relname='profiles' and t.tgname='trg_profiles_set_ids'
   ) as ok;
 
+select 'themes set_user trigger' as check,
+  exists (
+    select 1 from pg_trigger t
+    join pg_class c on c.oid = t.tgrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname='public' and c.relname='themes_library' and t.tgname='trg_themes_set_user'
+  ) as ok;
+
 -- RLS enabled flags
 select 'presentations RLS enabled' as check,
   (select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
@@ -280,11 +365,31 @@ select 'profiles RLS enabled' as check,
   (select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
     where n.nspname='public' and c.relname='profiles') as ok;
 
+select 'themes RLS enabled' as check,
+  (select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='public' and c.relname='themes') as ok;
+
+select 'themes_library RLS enabled' as check,
+  (select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='public' and c.relname='themes_library') as ok;
+
 -- Index exists
 select 'presentations_user_updated_idx exists' as check,
   exists (
     select 1 from pg_indexes
     where schemaname='public' and tablename='presentations' and indexname='presentations_user_updated_idx'
+  ) as ok;
+
+select 'themes_user_idx exists' as check,
+  exists (
+    select 1 from pg_indexes
+    where schemaname='public' and tablename='themes_library' and indexname='themes_user_idx'
+  ) as ok;
+
+select 'themes_created_idx exists' as check,
+  exists (
+    select 1 from pg_indexes
+    where schemaname='public' and tablename='themes_library' and indexname='themes_created_idx'
   ) as ok;
 
 -- Policies exist (names)
@@ -299,6 +404,14 @@ select 'assets policies count' as check,
 select 'profiles policies count' as check,
   (select count(*) from pg_policies where schemaname='public' and tablename='profiles'
     and policyname in ('profiles_select_own','profiles_insert_own','profiles_update_own')) = 3 as ok;
+
+select 'themes policies count' as check,
+  (select count(*) from pg_policies where schemaname='public' and tablename='themes'
+    and policyname in ('themes_select_all','themes_insert_own')) = 2 as ok;
+
+select 'themes_library policies count' as check,
+  (select count(*) from pg_policies where schemaname='public' and tablename='themes_library'
+    and policyname in ('themes_select_all','themes_insert_own','themes_update_own','themes_delete_own')) = 4 as ok;
 
 -- (Optional) Storage policy presence check (will only work if you created via UI)
 -- select policyname, permissive, roles, cmd, qual, with_check from pg_policies
@@ -322,17 +435,28 @@ drop policy if exists "profiles_select_own" on public.profiles;
 drop policy if exists "profiles_insert_own" on public.profiles;
 drop policy if exists "profiles_update_own" on public.profiles;
 
+drop policy if exists "themes_select_all" on public.themes;
+drop policy if exists "themes_insert_own" on public.themes;
+
+drop policy if exists "themes_select_all" on public.themes_library;
+drop policy if exists "themes_insert_own" on public.themes_library;
+drop policy if exists "themes_update_own" on public.themes_library;
+drop policy if exists "themes_delete_own" on public.themes_library;
+
 -- DROP TRIGGERS
 drop trigger if exists trg_presentations_updated_at on public.presentations;
 drop trigger if exists trg_presentations_set_user on public.presentations;
 drop trigger if exists trg_assets_set_user on public.assets;
 drop trigger if exists trg_profiles_updated_at on public.profiles;
 drop trigger if exists trg_profiles_set_ids on public.profiles;
+drop trigger if exists trg_themes_set_user on public.themes_library;
 
 -- DROP TABLES
 drop table if exists public.assets cascade;
 drop table if exists public.presentations cascade;
 drop table if exists public.profiles cascade;
+drop table if exists public.themes cascade;
+drop table if exists public.themes_library cascade;
 
 -- DROP FUNCTIONS
 drop function if exists public.set_updated_at() cascade;

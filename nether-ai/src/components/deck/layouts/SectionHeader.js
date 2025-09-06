@@ -9,6 +9,7 @@ export function SectionHeader({ title, animated }) {
         animate={animated ? { opacity: 1, x: 0 } : false}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         className="text-5xl md:text-7xl font-extrabold"
+        style={{ color: 'var(--color-text-primary)' }}
       >
         {title}
       </motion.h2>

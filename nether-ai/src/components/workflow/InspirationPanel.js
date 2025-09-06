@@ -6,7 +6,7 @@ import { useUIStore } from '@/store/useUIStore';
 import { usePresentationStore } from '@/store/usePresentationStore';
 
 import Button from '@/components/ui/Button';
-import { Copy, Star, Lightbulb } from 'lucide-react';
+import { Copy, Star, Lightbulb, Paintbrush } from 'lucide-react';
 
 // Featured templates (subset from TemplatesView)
 const featuredTemplates = [
@@ -116,6 +116,24 @@ export default function InspirationPanel() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Theme Gallery */}
+      <div className="glass-card p-6">
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+          <Paintbrush className="mr-2 text-purple-400" size={20} />
+          Theme Gallery
+        </h3>
+        <p className="text-white/70 text-sm mb-4">
+          Browse and apply pre-designed themes from our community library
+        </p>
+        <Button
+          onClick={() => setActiveView('themes')}
+          variant="secondary"
+          className="w-full justify-center"
+        >
+          Browse Themes
+        </Button>
       </div>
 
       {/* Recent Presentations (dynamic) */}

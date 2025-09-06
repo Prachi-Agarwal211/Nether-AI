@@ -1,9 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
 
-export function Quote({ quote, author, animated, recipe }) {
-  const accent1 = recipe?.theme_runtime?.accent || 'var(--accent-primary)';
-
+export function Quote({ quote, author, animated }) {
   const quoteVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
@@ -16,7 +14,7 @@ export function Quote({ quote, author, animated, recipe }) {
         animate={{ scale: 1 }}
         transition={{ delay: 0.1, type: 'spring' }}
         className="text-6xl md:text-8xl font-serif mb-6"
-        style={{ color: accent1 }}
+        style={{ color: 'var(--color-primary-accent)' }}
       >
         “
       </motion.div>
@@ -25,6 +23,7 @@ export function Quote({ quote, author, animated, recipe }) {
         initial={animated ? 'hidden' : undefined}
         animate={animated ? 'visible' : undefined}
         className="text-3xl md:text-5xl font-medium leading-tight max-w-4xl"
+        style={{ color: 'var(--color-text-primary)' }}
       >
         {quote}
       </motion.blockquote>
@@ -33,7 +32,8 @@ export function Quote({ quote, author, animated, recipe }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="mt-8 text-lg md:text-xl text-text-secondary"
+          className="mt-8 text-lg md:text-xl"
+          style={{ color: 'var(--color-text-secondary)' }}
         >
           — {author}
         </motion.cite>

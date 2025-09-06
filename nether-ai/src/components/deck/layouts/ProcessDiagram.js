@@ -25,7 +25,7 @@ export function ProcessDiagram({ title, steps = [], animated }) {
         <motion.h2
           variants={itemVariants}
           className="text-5xl font-bold mb-16 text-center"
-          style={{ color: 'var(--color-textPrimary)' }}
+          style={{ color: 'var(--color-text-primary)' }}
         >
           {title}
         </motion.h2>
@@ -40,17 +40,17 @@ export function ProcessDiagram({ title, steps = [], animated }) {
             >
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mb-4"
-                style={{ background: 'var(--color-primary)', color: 'var(--color-textPrimary)' }}
+                style={{ background: 'var(--color-primary-accent)', color: 'var(--color-text-primary)' }}
               >
                 {i + 1}
               </div>
               {step.title && (
-                <h3 className="font-semibold text-xl mb-2" style={{ color: 'var(--color-textPrimary)' }}>
+                <h3 className="font-semibold text-xl mb-2" style={{ color: 'var(--color-text-primary)' }}>
                   {step.title}
                 </h3>
               )}
               {step.description && (
-                <p className="text-sm" style={{ color: 'var(--color-textSecondary)' }}>
+                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                   {step.description}
                 </p>
               )}
@@ -58,7 +58,7 @@ export function ProcessDiagram({ title, steps = [], animated }) {
 
             {i < steps.length - 1 && (
               <motion.div variants={itemVariants} className="mx-2">
-                <ChevronRight className="w-12 h-12" style={{ color: 'var(--color-secondary)' }} />
+                <ChevronRight className="w-12 h-12" style={{ color: 'var(--color-secondary-accent)' }} />
               </motion.div>
             )}
           </React.Fragment>

@@ -24,8 +24,8 @@ export function DataChart({ title, chartData, animated }) {
   useEffect(() => {
     if (chartData && chartData.labels && chartData.datasets) {
       const computedStyle = getComputedStyle(document.documentElement);
-      const primaryColor = computedStyle.getPropertyValue('--color-primary').trim();
-      const secondaryColor = computedStyle.getPropertyValue('--color-secondary').trim();
+      const primaryColor = computedStyle.getPropertyValue('--color-primary-accent').trim();
+      const secondaryColor = computedStyle.getPropertyValue('--color-secondary-accent').trim();
 
       const dataWithResolvedColors = {
         ...chartData,
@@ -42,7 +42,7 @@ export function DataChart({ title, chartData, animated }) {
         datasets: [{
           label: 'No data available for this chart.',
           data: [1],
-          backgroundColor: ['#444'],
+          backgroundColor: ['var(--color-text-secondary)'],
         }],
       });
     }
@@ -52,12 +52,18 @@ export function DataChart({ title, chartData, animated }) {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'top', labels: { color: 'var(--color-textSecondary)' } },
+      legend: { position: 'top', labels: { color: 'var(--color-text-secondary)' } },
       title: { display: false },
     },
     scales: {
-      x: { ticks: { color: 'var(--color-textSecondary)' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-      y: { ticks: { color: 'var(--color-textSecondary)' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+      x: { 
+        ticks: { color: 'var(--color-text-secondary)' }, 
+        grid: { color: 'rgba(var(--color-text-secondary-rgb), 0.1)' } 
+      },
+      y: { 
+        ticks: { color: 'var(--color-text-secondary)' }, 
+        grid: { color: 'rgba(var(--color-text-secondary-rgb), 0.1)' } 
+      },
     },
   };
 
@@ -84,7 +90,7 @@ export function DataChart({ title, chartData, animated }) {
       transition={{ duration: 0.5 }}
     >
       {title && (
-        <h2 className="text-5xl font-bold mb-8 text-center" style={{ color: 'var(--color-textPrimary)' }}>
+        <h2 className="text-5xl font-bold mb-8 text-center" style={{ color: 'var(--color-text-primary)' }}>
           {title}
         </h2>
       )}

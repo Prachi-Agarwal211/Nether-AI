@@ -1,5 +1,7 @@
 // src/core/themeUtils.js
 
+import { generateGradientCss, generateRootCss } from './cssGenerator';
+
 // Simple HSL to Hex converter
 function hslToHex(h, s, l) {
   l /= 100;
@@ -12,6 +14,61 @@ function hslToHex(h, s, l) {
       .padStart(2, '0');
   };
   return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+// Helper to resolve color references from the brief
+function parseColor(colorRef, palette) {
+  if (!colorRef || !palette) return '#000000';
+  if (colorRef.startsWith('#')) return colorRef;
+
+  // Handle nested references like "primary.main"
+  const keys = colorRef.split('.');
+  let value = palette;
+  for (const key of keys) {
+    value = value?.[key];
+    if (value === undefined) return '#000000';
+  }
+  return typeof value === 'string' ? value : '#000000';
+}
+
+// Generates CSS from an AI design brief
+// Input: designBrief JSON from generateDesignSystem
+// Output: CSS string with variables and utility classes
+export function generateCssFromBrief(brief) {
+  if (!brief) return '';
+  
+  const { themeName, colorPalette, typography, styleTokens } = brief;
+  const cssVariables = [];
+
+  // Color Palette Variables
+  Object.entries(colorPalette || {}).forEach(([type, values]) => {
+    Object.entries(values).forEach(([variant, hex]) => {
+      cssVariables.push(`--color-${type}-${variant}: ${hex};`);
+    });
+  });
+
+  // Typography Variables
+  cssVariables.push(`--font-heading: "${typography?.fontFamilies?.heading || 'Inter'}", sans-serif;`);
+  cssVariables.push(`--font-body: "${typography?.fontFamilies?.body || 'Inter'}", sans-serif;`);
+
+  // Style Token Variables
+  Object.entries(styleTokens || {}).forEach(([category, values]) => {
+    Object.entries(values).forEach(([token, value]) => {
+      cssVariables.push(`--token-${category}-${token}: ${value};`);
+    });
+  });
+
+  let css = generateRootCss(cssVariables);
+
+  // Utility Class for Gradient Text
+  const headingGradient = typography?.textEffects?.headingGradient;
+  if (headingGradient?.colors) {
+    const gradientColors = headingGradient.colors
+      .map(ref => parseColor(ref, colorPalette));
+    css += generateGradientCss(gradientColors);
+  }
+
+  return css;
 }
 
 // Generates a professional, harmonious color palette from a single base color.
@@ -54,5 +111,37 @@ export function generatePalette(baseHex = '#00FFFF') {
       background: '#05060A',
       textPrimary: '#F0F4FF',
     };
+  }
+}
+
+export function generateBackgroundCss(brief, variant = 'default') {
+  if (!brief?.backgroundSystem) return brief?.colorPalette?.background?.default || '#000000';
+
+  const { backgroundSystem, colorPalette } = brief;
+  const recipe = backgroundSystem.recipes?.[variant];
+  if (!recipe) return colorPalette.background.default;
+
+  const generator = backgroundSystem.types?.[recipe.type];
+  if (!generator) return colorPalette.background.default;
+
+  switch (recipe.type) {
+    case 'aurora':
+      const colors = generator.colors.map(ref => parseColor(ref, colorPalette));
+      const opacity = generator.opacity || 0.2;
+      return `
+        radial-gradient(ellipse at 70% 20%, ${colors[0]}${Math.round(opacity*255).toString(16).padStart(2, '0')}, transparent 50%),
+        radial-gradient(ellipse at 30% 80%, ${colors[1]}${Math.round(opacity*255).toString(16).padStart(2, '0')}, transparent 50%),
+        ${colorPalette.background.default}
+      `;
+    case 'mesh':
+      const meshColors = generator.colors.map(ref => parseColor(ref, colorPalette));
+      return `
+        radial-gradient(at 10% 10%, ${meshColors[0]} 0px, transparent 50%),
+        radial-gradient(at 80% 20%, ${meshColors[1]} 0px, transparent 50%),
+        radial-gradient(at 70% 90%, ${meshColors[2]} 0px, transparent 50%),
+        ${colorPalette.background.default}
+      `;
+    default:
+      return colorPalette.background.default;
   }
 }

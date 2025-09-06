@@ -145,15 +145,27 @@ export default function IdeaView() {
   const handleSendMessage = async (topicToSend) => {
     if (!topicToSend.trim() || isLoading) return;
 
-    const newMessages = [...messages, { type: 'user', text: topicToSend }];
+    const userMessage = { type: 'user', text: topicToSend };
+    const newMessages = [...messages, userMessage];
     setMessages(newMessages);
-    setTopic(topicToSend); // Set topic early for context
     setInputTopic('');
     setLoading(true);
     setError('');
 
     try {
-      const result = await aiService.continueConversation(newMessages);
+      // Update topic in store if this is the first user message
+      if (messages.filter(m => m.type === 'user').length === 0) {
+        setTopic(topicToSend);
+      }
+      
+      const result = await aiService.continueConversation({
+        messages: newMessages
+          .filter(m => ['user', 'ai'].includes(m.type))
+          .map(m => ({
+            role: m.type === 'user' ? 'user' : 'assistant',
+            content: m.text
+          }))
+      });
       
       if (result.response_type === 'text') {
         setMessages(prev => [...prev, { type: 'ai', text: result.content }]);
@@ -162,7 +174,7 @@ export default function IdeaView() {
         setStrategicAngles(angles);
         setMessages(prev => [...prev, {
           type: 'ai',
-          text: "Excellent. I've generated a few strategic angles for your presentation. Which one resonates the most with you?"
+          text: "Here are some strategic angles for your presentation:"
         }, {
           type: 'angles',
           angles: angles
@@ -172,7 +184,10 @@ export default function IdeaView() {
     } catch (e) {
       const errorMsg = `Failed to get AI response: ${e.message}`;
       setError(errorMsg);
-      setMessages(prev => [...prev, { type: 'ai', text: `Sorry, I encountered an error: ${e.message}` }]);
+      setMessages(prev => [...prev, { 
+        type: 'ai', 
+        text: `Sorry, I encountered an error: ${e.message}` 
+      }]);
       toast.error(errorMsg);
     } finally {
       setLoading(false);

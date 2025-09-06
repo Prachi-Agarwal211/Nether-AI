@@ -1,37 +1,16 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { generatePalette } from '@/core/themeUtils';
-import { backgroundRecipes } from '@/core/backgrounds';
+import { generateBackgroundCss } from '@/core/themeUtils';
+import { useMemo } from 'react';
 
-export default function DeckBackground({ background, backgroundVariant, animated = true }) {
-  const bg = background || { recipeName: 'subtleNoise', baseColor: '#00FFFF' };
+export default function DeckBackground({ designSystem, backgroundVariant = 'default', animated = true }) {
 
-  let backgroundStyle = {};
-  try {
-    // 1) Try CSS variable-based gradients first (from ThemeProvider): --gradient-<variant>
-    if (backgroundVariant) {
-      const varName = `--gradient-${backgroundVariant}`;
-      const cssValue = typeof window !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue(varName) : '';
-      const v = cssValue && cssValue.trim();
-      if (v) {
-        backgroundStyle.background = v;
-      }
-    }
-    // 2) Fallback to recipe-based generation if no CSS gradient found
-    if (!backgroundStyle.background) {
-      const palette = generatePalette(bg.baseColor);
-      if (bg.recipeName && backgroundRecipes[bg.recipeName]) {
-        backgroundStyle.background = backgroundRecipes[bg.recipeName](palette);
-      } else {
-        backgroundStyle.background = palette.background;
-      }
-    }
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.error('Failed to generate background:', e);
-    backgroundStyle.background = '#05060A';
-  }
+  const backgroundStyle = useMemo(() => ({
+    background: generateBackgroundCss(designSystem, backgroundVariant)
+  }), [designSystem, backgroundVariant]);
+
+  if (!designSystem) return null;
 
   const bgVariants = {
     hidden: { opacity: 0 },

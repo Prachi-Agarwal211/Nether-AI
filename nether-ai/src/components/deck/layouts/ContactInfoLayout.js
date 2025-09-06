@@ -18,19 +18,19 @@ export function ContactInfoLayout({ title = "Thank You", name, role, contacts = 
       animate="visible"
       variants={{ visible: { transition: { staggerChildren: 0.15 } } }}
     >
-      <motion.h2 variants={itemVariants} className="text-6xl font-bold mb-4" style={{ color: 'var(--color-textPrimary)' }}>
+      <motion.h2 variants={itemVariants} className="text-6xl font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>
         {title}
       </motion.h2>
 
-      <motion.div variants={itemVariants} className="w-48 h-1 my-6 rounded-full" style={{ background: 'var(--color-primary)' }} />
+      <motion.div variants={itemVariants} className="w-48 h-1 my-6 rounded-full" style={{ background: 'var(--color-primary-accent)' }} />
 
       {name && (
-        <motion.p variants={itemVariants} className="text-4xl font-medium" style={{ color: 'var(--color-textPrimary)' }}>
+        <motion.p variants={itemVariants} className="text-4xl font-medium" style={{ color: 'var(--color-text-primary)' }}>
           {name}
         </motion.p>
       )}
       {role && (
-        <motion.p variants={itemVariants} className="text-xl mt-2 text-white/70">
+        <motion.p variants={itemVariants} className="text-xl mt-2" style={{ color: 'var(--color-text-secondary)' }}>
           {role}
         </motion.p>
       )}
@@ -49,9 +49,10 @@ export function ContactInfoLayout({ title = "Thank You", name, role, contacts = 
               rel="noopener noreferrer"
               variants={itemVariants}
               whileHover={{ scale: 1.1, y: -5 }}
-              className="flex items-center gap-3 text-lg text-white/80 hover:text-white"
+              className="flex items-center gap-3 text-lg"
+              style={{ color: 'var(--color-text-secondary)' }}
             >
-              <Icon className="w-6 h-6" style={{ color: 'var(--color-secondary)' }} />
+              <Icon className="w-6 h-6" style={{ color: 'var(--color-secondary-accent)' }} />
               <span>{contact.label}</span>
             </motion.a>
           );

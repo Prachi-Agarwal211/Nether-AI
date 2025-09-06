@@ -35,7 +35,7 @@ export function TitleAndBulletsLayout({ title, body, bullets, animated }) {
           animate={animated ? { opacity: 1 } : false}
           transition={{ duration: 0.5 }}
           className="text-5xl font-bold mb-8"
-          style={{ color: 'var(--color-textPrimary)' }}
+          style={{ color: 'var(--color-text-primary)' }}
         >
           {title}
         </motion.h2>
@@ -45,7 +45,8 @@ export function TitleAndBulletsLayout({ title, body, bullets, animated }) {
           initial={animated ? { opacity: 0 } : false}
           animate={animated ? { opacity: 1 } : false}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="text-lg text-white/80 mb-6"
+          className="text-lg mb-6"
+          style={{ color: 'var(--color-text-secondary)' }}
         >
           {body}
         </motion.p>
@@ -57,9 +58,9 @@ export function TitleAndBulletsLayout({ title, body, bullets, animated }) {
               key={index}
               variants={itemVariants}
               className="flex items-start gap-4 text-xl"
-              style={{ color: 'var(--color-textSecondary)' }}
+              style={{ color: 'var(--color-text-secondary)' }}
             >
-              <span style={{ color: 'var(--color-primary)' }}>◆</span>
+              <span style={{ color: 'var(--color-primary-accent)' }}>◆</span>
               <span>{renderContent(item)}</span>
             </motion.li>
           ))}

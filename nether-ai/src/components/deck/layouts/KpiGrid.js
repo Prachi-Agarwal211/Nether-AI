@@ -20,7 +20,7 @@ export function KpiGrid({ title, kpis = [], animated }) {
         <motion.h2
           variants={itemVariants}
           className="text-5xl font-bold mb-12 text-center"
-          style={{ color: 'var(--color-textPrimary)' }}
+          style={{ color: 'var(--color-text-primary)' }}
         >
           {title}
         </motion.h2>
@@ -34,12 +34,15 @@ export function KpiGrid({ title, kpis = [], animated }) {
               key={i}
               variants={animated ? itemVariants : undefined}
               className="p-6 rounded-xl"
-              style={{ background: 'var(--token-glassBackgroundColor)', border: `1px solid var(--token-glassBorderColor)` }}
+              style={{ 
+                background: 'var(--token-glassBackgroundColor)', 
+                border: '1px solid var(--token-glassBorderColor)' 
+              }}
             >
-              <div className="text-sm text-white/70 mb-2">{kpi.label}</div>
-              <div className="text-4xl font-bold text-white mb-3">{kpi.value}</div>
+              <div className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>{kpi.label}</div>
+              <div className="text-4xl font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>{kpi.value}</div>
               {kpi.change && (
-                <div className={`flex items-center text-sm ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                <div className="flex items-center text-sm" style={{ color: isPositive ? 'var(--color-positive)' : 'var(--color-negative)' }}>
                   {isPositive ? <ArrowUpRight className="w-4 h-4 mr-1" /> : <ArrowDownRight className="w-4 h-4 mr-1" />}
                   {kpi.change}
                 </div>

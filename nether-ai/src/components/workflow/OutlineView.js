@@ -39,6 +39,7 @@ export default function OutlineView() {
       angle: presentation.chosenAngle,
       onEvent: (event) => {
         if (event.type === 'design_system') {
+          console.log('--- RECEIVED DESIGN BRIEF IN BROWSER ---', event.designSystem);
           if (setDesignSystem) setDesignSystem(event.designSystem);
           else setPresentation({ designSystem: event.designSystem });
         } else if (event.type === 'recipe') {

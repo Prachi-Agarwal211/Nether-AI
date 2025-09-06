@@ -10,6 +10,7 @@ const initialState = {
   slideRecipes: [],
   themeRuntime: null,
   designSystem: null,
+  selectedTheme: null, // Added for theme library
   activeSlideIndex: 0,
   recentPresentations: [],
 };
@@ -27,6 +28,7 @@ export const usePresentationStore = create((set) => ({
   setSlideCount: (slideCount) => set((state) => ({ presentation: { ...state.presentation, slideCount } })),
   setSlideRecipes: (recipes) => set((state) => ({ presentation: { ...state.presentation, slideRecipes: recipes, activeSlideIndex: 0 } })),
   setDesignSystem: (designSystem) => set((state) => ({ presentation: { ...state.presentation, designSystem } })),
+  setSelectedTheme: (theme) => set((state) => ({ presentation: { ...state.presentation, selectedTheme: theme } })), // New action
   setActiveSlideIndex: (index) => set((state) => {
     const lastIndex = Math.max(0, (state.presentation.slideRecipes?.length || 1) - 1);
     const newIndex = Math.max(0, Math.min(index, lastIndex));

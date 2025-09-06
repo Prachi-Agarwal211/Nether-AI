@@ -106,7 +106,7 @@ export async function haveConversation(chatHistory) {
 
 // Logic for generating angles
 export async function generateStrategicAngles(topic, prefs = {}) {
-  const system = `You are a world-class presentation strategist and storytelling expert. You excel at identifying the most compelling narrative angles for any topic. Your goal is to help users choose the perfect story to tell by generating 4 distinct, engaging angles. Your output must be a single, valid JSON object with an "angles" array, and nothing else.`;
+  const system = `You are a world-class presentation strategist and storytelling expert. You excel at identifying the most compelling narrative angles for any topic. Your output must be a single, valid JSON object with an "angles" array, and nothing else.`;
 
   const user = `
 Generate 4 strategic angles for a presentation on the topic: "${topic}".
@@ -204,68 +204,129 @@ export async function refineBlueprint(blueprint, message, chatHistory = []) {
 }
 
 /**
- * [NEW FUNCTION] Stage 1: The Brand Director AI
- * Generates a complete, cohesive design system for the entire presentation.
+ * Generates a complete design system brief with:
+ * - Unique theme name
+ * - Contrast-aware color palette
+ * - Background system recipes
+ * - Typography system
+ * - Style tokens
  */
 export async function generateDesignSystem(topic, angle) {
-  const system = `You are a visionary Creative Director at a top-tier design agency. Your specialty is creating stunning, futuristic, and professional brand identities for presentations. Your output must be only a single, valid JSON object.`;
+  const system = `You are a visionary AI Art Director. Create a unique, high-quality design system from scratch that will define the visual DNA of a presentation.
 
-  const user = `
-    The presentation topic is: "${topic}".
-    The chosen angle is: "${angle?.title || ''}".
+**Your Creative Mandate:**
+1. **Theme Identity** - Invent a unique themeName (2-3 words) that captures the essence of the topic
+2. **Color System** - Generate a complete colorPalette with:
+   - Primary, secondary, and accent colors
+   - Background/text pairs meeting WCAG AA contrast
+   - Semantic colors (success, warning, danger)
+3. **Background Recipes** - Define 3+ advanced background types:
+   - Meshes: Complex gradient meshes with 3+ colors
+   - Aurora: Soft, organic light effects
+   - Noise: Subtle textured backgrounds
+   - Glass: Modern frosted glass effects
+4. **Typography** - Create a typography system with:
+   - Font pairings (heading + body)
+   - Text effects (gradients, shadows)
+   - Responsive sizing scale
+5. **Style Tokens** - Define reusable design tokens for:
+   - Borders, shadows, blurs
+   - Animation properties
+   - Spacing system
 
-    Generate a UNIQUE and cohesive Design System. Choose from these diverse aesthetic styles:
-    - 'Modern-Minimalist': Clean whites, subtle grays, bold accent colors (coral, teal)
-    - 'Tech-Futuristic': Dark backgrounds, neon accents, electric blues/purples, cyberpunk vibes
-    - 'Corporate-Professional': Navy blues, sophisticated grays, gold/bronze accents
-    - 'Creative-Vibrant': Bright gradients, bold colors (magenta, lime, orange), energetic palettes
-    - 'Nature-Organic': Earth tones, forest greens, warm browns, sunset oranges
-    - 'Medical-Clean': Clinical whites, soft blues, trustworthy teals, mint accents
-    - 'Financial-Trustworthy': Deep blues, silver accents, professional grays, emerald touches
-    - 'Startup-Dynamic': Bold oranges, electric blues, modern gradients, purple highlights
-    - 'Luxury-Premium': Rich blacks, gold accents, deep purples, champagne highlights
-    - 'Education-Friendly': Warm blues, soft yellows, approachable greens, coral accents
-    - 'Entertainment-Bold': Vibrant reds, electric yellows, deep magentas, neon greens
-    - 'Wellness-Calm': Soft lavenders, sage greens, warm beiges, dusty roses
-
-    IMPORTANT: Select ONE aesthetic that best matches the topic and angle. Make it visually distinct and memorable.
-
-    - Color Palette: Create a sophisticated, cohesive palette with 3-4 main colors that work harmoniously
-    - Typography: Choose fonts that match the aesthetic (modern sans-serif for tech, serif for traditional, etc.)
-    - Style Tokens: Define glassmorphism and visual effects appropriate to the chosen style
-
-    Return the JSON matching this exact schema (include both legacy keys and new background variants):
-    {
-      "colorPalette": {
-        "primary": "#RRGGBB",
-        "secondary": "#RRGGBB",
-        "accent": "#RRGGBB",
-        "backgroundStart": "#RRGGBB",
-        "backgroundEnd": "#RRGGBB",
-        "textPrimary": "#RRGGBB",
-        "textSecondary": "#RRGGBB"
-      },
-      "gradients": {
-        "titleGradient": "linear-gradient(90deg, [primary], [secondary])",
-        "backgroundGradient": "linear-gradient(160deg, [backgroundStart], [backgroundEnd])",
-        // NEW background variants used per-slide by the Layout Architect
-        "background_default": "linear-gradient(160deg, [backgroundStart], [backgroundEnd])",
-        "background_title": "radial-gradient(circle at top, [primary] 10%, transparent 60%), linear-gradient(160deg, [backgroundStart], [backgroundEnd])",
-        "background_subtle": "linear-gradient(180deg, rgba(0,0,0,0.3), rgba(0,0,0,0.6)), linear-gradient(160deg, [backgroundStart], [backgroundEnd])"
-      },
-      "typography": {
-        "headingFont": "string",
-        "bodyFont": "string"
-      },
-      "styleTokens": {
-        "glassBackgroundColor": "string (rgba format)",
-        "glassBorderColor": "string (rgba format)",
-        "glassBlur": "string (e.g., '12px')",
-        "cardShadow": "string (e.g., '0 10px 30px rgba(0, 0, 0, 0.4)')",
-        "borderRadius": "string (e.g., '16px')"
-      }
+**Output Format:**
+{
+  "themeName": "Unique Theme Name",
+  "colorPalette": {
+    "primary": {
+      "main": "#RRGGBB",
+      "light": "#RRGGBB",
+      "dark": "#RRGGBB"
+    },
+    "secondary": {
+      "main": "#RRGGBB",
+      "light": "#RRGGBB",
+      "dark": "#RRGGBB"
+    },
+    "background": {
+      "default": "#RRGGBB",
+      "paper": "#RRGGBB"
+    },
+    "text": {
+      "primary": "#RRGGBB",
+      "secondary": "#RRGGBB"
+    },
+    "semantic": {
+      "success": "#RRGGBB",
+      "warning": "#RRGGBB",
+      "danger": "#RRGGBB"
     }
-  `;
+  },
+  "backgroundSystem": {
+    "types": {
+      "mesh": {
+        "colors": ["#RRGGBB", "#RRGGBB", "#RRGGBB"],
+        "angle": 45,
+        "intensity": 0.8
+      },
+      "aurora": {
+        "colors": ["#RRGGBB", "#RRGGBB"],
+        "blur": 80,
+        "opacity": 0.4
+      },
+      "glass": {
+        "blur": 8,
+        "opacity": 0.2
+      }
+    },
+    "recipes": {
+      "default": {"type": "mesh", "variant": "soft"},
+      "title": {"type": "aurora", "variant": "vibrant"},
+      "section": {"type": "glass", "variant": "light"}
+    }
+  },
+  "typography": {
+    "fontFamilies": {
+      "heading": "Font Name",
+      "body": "Font Name"
+    },
+    "textEffects": {
+      "headingGradient": {"colors": ["primary.main", "secondary.main"]},
+      "textShadow": {"color": "rgba(0,0,0,0.1)", "offset": "1px 1px"}
+    }
+  },
+  "styleTokens": {
+    "borderRadius": {
+      "small": "4px",
+      "medium": "8px",
+      "large": "12px"
+    },
+    "shadows": {
+      "small": "0 1px 3px rgba(0,0,0,0.12)",
+      "medium": "0 4px 6px rgba(0,0,0,0.1)",
+      "large": "0 10px 15px rgba(0,0,0,0.1)"
+    },
+    "spacing": {
+      "unit": 8,
+      "section": 64
+    }
+  },
+  "previewColors": {
+    "bg": "#RRGGBB",
+    "text": "#RRGGBB",
+    "accent": "#RRGGBB"
+  }
+}`;
+
+  const user = `Create a cutting-edge design system for a presentation about:
+Topic: "${topic}"
+Angle: "${angle?.title || ''}"
+
+Design Direction:
+- Should feel modern and professional
+- Incorporate visual motifs from the topic
+- Ensure excellent readability and accessibility
+- Include at least one innovative visual effect`;
 
   return await callGoogleGemini({ system, user, json: true });
 }

@@ -2,6 +2,46 @@
 import { NextResponse } from 'next/server';
 import * as AiCore from '@/core/ai';
 import { ensureApiKey } from '@/core/ai-config';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client with proper error handling
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Supabase URL and Key must be set in environment variables');
+  throw new Error('Supabase configuration missing');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Helper to save theme to Supabase (non-blocking)
+async function saveThemeToDatabase(designSystem) {
+  try {
+    if (!designSystem?.themeName) return;
+    
+    const { error } = await supabase
+      .from('themes')
+      .insert({
+        theme_name: designSystem.themeName,
+        design_brief: designSystem,
+        preview_colors: designSystem.previewColors || {
+          bg: designSystem.colorPalette?.background?.default || '#000000',
+          text: designSystem.colorPalette?.text?.primary || '#ffffff',
+          accent: designSystem.colorPalette?.primary?.main || '#3b82f6'
+        },
+        created_at: new Date().toISOString()
+      });
+      
+    if (error) {
+      console.error('[Supabase] Failed to save theme:', error);
+    } else {
+      console.log('[Supabase] Theme saved successfully');
+    }
+  } catch (e) {
+    console.error('[Supabase] Error saving theme:', e);
+  }
+}
 
 // Helper to create a streaming SSE response from an async generator
 function createStreamingResponse(iterator) {
@@ -37,7 +77,7 @@ export async function POST(req) {
 
     // Streaming slide recipe generation with design system first (then parallel slide recipe generation)
     if (action === 'generate_recipes_stream') {
-      const { blueprint, topic, angle } = payload;
+      const { blueprint, topic, angle, selectedTheme } = payload;
 
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
@@ -55,13 +95,22 @@ export async function POST(req) {
           };
           
           try {
-            // Stage 1: Brand Director — generate design system
-            let designSystem = null;
-            if (topic && angle) {
-              console.log('[API] Stage 1: Generating Design System...');
+            // Stage 1: Use selected theme or generate new one
+            let designSystem = selectedTheme;
+            
+            if (!designSystem && topic && angle) {
+              console.log('[API] Generating new design system...');
               designSystem = await AiCore.generateDesignSystem(topic, angle);
+              console.log('--- AI-GENERATED DESIGN BRIEF ---', JSON.stringify(designSystem, null, 2));
               push({ type: 'design_system', designSystem });
-              console.log('[API] Stage 1: Design System sent.');
+              
+              // Save new themes (non-blocking)
+              if (designSystem) {
+                saveThemeToDatabase(designSystem).catch(console.error);
+              }
+            } else if (designSystem) {
+              console.log('[API] Using selected theme');
+              push({ type: 'design_system', designSystem });
             }
 
             // Stages 2 & 3: Parallel slide recipe generation (theme-aware)

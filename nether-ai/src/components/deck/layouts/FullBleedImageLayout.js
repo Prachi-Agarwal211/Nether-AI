@@ -14,7 +14,7 @@ export function FullBleedImageLayout({ title, subtitle, imageUrl, animated }) {
   };
 
   return (
-    <div className="w-full h-full relative flex flex-col items-center justify-center text-center text-white">
+    <div className="w-full h-full relative flex flex-col items-center justify-center text-center" style={{ color: 'var(--color-text-primary)' }}>
       {/* Background Image */}
       {imageUrl && (
         <motion.div
@@ -25,7 +25,7 @@ export function FullBleedImageLayout({ title, subtitle, imageUrl, animated }) {
         >
           <img src={imageUrl} alt={title || 'Background'} className="w-full h-full object-cover" />
           {/* Overlay for readability */}
-          <div className="absolute inset-0 bg-black/60" />
+          <div className="absolute inset-0" style={{ backgroundColor: 'rgba(var(--color-background-rgb), 0.6)' }} />
         </motion.div>
       )}
 
@@ -38,7 +38,8 @@ export function FullBleedImageLayout({ title, subtitle, imageUrl, animated }) {
       >
         {title && (
           <motion.h1
-            className="text-6xl md:text-8xl font-extrabold mb-4 mother-of-pearl-text"
+            className="text-6xl md:text-8xl font-extrabold mb-4"
+            style={{ color: 'var(--color-text-primary)' }}
             variants={animated ? itemVariants : undefined}
           >
             {title}
@@ -46,7 +47,8 @@ export function FullBleedImageLayout({ title, subtitle, imageUrl, animated }) {
         )}
         {subtitle && (
           <motion.p
-            className="text-xl md:text-3xl max-w-4xl text-white/80"
+            className="text-xl md:text-3xl max-w-4xl"
+            style={{ color: 'var(--color-text-secondary)' }}
             variants={animated ? itemVariants : undefined}
           >
             {subtitle}
