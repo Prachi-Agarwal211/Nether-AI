@@ -1,9 +1,7 @@
-// Removed unused import from '@/core/ai' to fix module-not-found error.
-
 // This service is responsible for all interactions with our own /api/ai endpoint.
 // It returns data or throws an error. It does not set state.
 
-// --- [NEW] CONVERSATIONAL ACTION ---
+// --- CONVERSATIONAL ACTION ---
 
 export async function continueConversation(chatHistory) {
   const response = await fetch("/api/ai", {
@@ -14,21 +12,21 @@ export async function continueConversation(chatHistory) {
   return response.json();
 }
 
-// --- NON-STREAMING ACTIONS (Remain the same) ---
+// --- NON-STREAMING ACTIONS ---
 
-export async function generateAngles(topic, prefs) {
+export async function generateAngles(topic, context) {
   const response = await fetch("/api/ai", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "generate_angles", payload: { topic, ...prefs } }),
+    body: JSON.stringify({ action: "generate_angles", payload: { topic, ...context } }),
   });
   if (!response.ok) throw new Error((await response.json()).error || "Failed to generate angles");
   return response.json();
 }
 
-export async function generateBlueprint(topic, angle, slideCount, prefs) {
+export async function generateBlueprint(topic, angle, slideCount, context) {
   const response = await fetch("/api/ai", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "generate_blueprint", payload: { topic, angle, slideCount, ...prefs } }),
+    body: JSON.stringify({ action: "generate_blueprint", payload: { topic, angle, slideCount, ...context } }),
   });
   if (!response.ok) throw new Error((await response.json()).error || "Failed to generate blueprint");
   return response.json();
@@ -48,22 +46,31 @@ export async function refineBlueprint(blueprint, message, chatHistory) {
   return response.json();
 }
 
+// [NEW] Action for refining a single slide
+export async function refineSlide(slideRecipe, message) {
+    const response = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "refine_slide", payload: { slideRecipe, message } }),
+    });
+    if (!response.ok) {
+        let err = 'Failed to refine slide';
+        try { const j = await response.json(); err = j.error || err; } catch {}
+        throw new Error(err);
+    }
+    return response.json();
+}
+
 // --- STREAMING CLIENT IMPLEMENTATION ---
 
 export async function generateSlideRecipesStream({
-  blueprint,
-  topic,
-  angle,
-  onEvent,  // Generic event callback: receives full event objects
-  onRecipe, // Back-compat: Callback for each slide recipe that arrives
-  onError,  // Callback for any errors during the stream
-  onDone,   // Callback when the stream is complete
+  blueprint, topic, angle, context, onEvent, onDone
 }) {
   try {
     const response = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'generate_recipes_stream', payload: { blueprint, topic, angle } }),
+      body: JSON.stringify({ action: 'generate_recipes_stream', payload: { blueprint, topic, angle, ...context } }),
     });
 
     if (!response.ok || !response.body) {
@@ -86,19 +93,12 @@ export async function generateSlideRecipesStream({
           const json = line.substring(6);
           try {
             const event = JSON.parse(json);
-            // Generic handler first
             if (onEvent) onEvent(event);
-            // Back-compat branches
-            if (event.type === 'recipe' && onRecipe) {
-              onRecipe(event.recipe, event.index);
-            } else if (event.type === 'error' && onError) {
-              onError(event.message || 'An error occurred during generation.');
-            }
           } catch (_) { /* ignore partial/invalid lines */ }
         }
       }
     }
   } catch (e) {
-    if (onError) onError(e.message || 'Stream error');
+    if (onEvent) onEvent({ type: 'error', message: e.message || 'Stream error' });
   }
 }

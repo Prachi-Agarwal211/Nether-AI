@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { useUIStore } from '@/store/useUIStore';
 
 export default function DashboardLayout({ children }) {
-  const { isLoading } = useUIStore();
+  const { isLoading, isFullscreen } = useUIStore();
   useEffect(() => {
     const handleMouseMove = (e) => {
       document.body.style.setProperty('--mouse-x', `${e.clientX}px`);
@@ -22,18 +22,20 @@ export default function DashboardLayout({ children }) {
     <div className="h-screen w-screen grid grid-rows-[auto_1fr_auto] overflow-hidden">
       <VantaBackground />
 
-      {/* Row 1: Header */}
-      <div className="relative z-20">
-        <Header />
-      </div>
+      {/* Row 1: Header (hidden in fullscreen) */}
+      {!isFullscreen && (
+        <div className="relative z-20">
+          <Header />
+        </div>
+      )}
 
       {/* Row 2: Main content */}
       <main className="relative z-10 overflow-hidden">
           {children}
       </main>
 
-      {/* Row 3: Footer (hidden during workflows to maximize space) */}
-      {!isLoading && (
+      {/* Row 3: Footer (hidden during workflows and in fullscreen to maximize space) */}
+      {!isLoading && !isFullscreen && (
         <div className="relative z-20">
           <Footer />
         </div>

@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 
 export default function OutlineView() {
   const { isLoading, setLoading, setError, setActiveView } = useUIStore();
-  const { presentation, setBlueprint, setSlideRecipes, setDesignSystem, setPresentation } = usePresentationStore();
+  const { presentation, setBlueprint, setSlideRecipes, setDesignSystem } = usePresentationStore();
 
   const handleRefineBlueprint = async (message, chatHistory) => {
     setLoading(true);
@@ -33,15 +33,17 @@ export default function OutlineView() {
     const slideCount = presentation?.blueprint?.slides?.length || 0;
     setSlideRecipes(Array(slideCount).fill(null));
 
+    const { topic, chosenAngle, blueprint, audience, tone, objective } = presentation;
+    const context = { audience, tone, objective };
+
     await aiService.generateSlideRecipesStream({
-      blueprint: presentation.blueprint,
-      topic: presentation.topic,
-      angle: presentation.chosenAngle,
+      blueprint,
+      topic,
+      angle: chosenAngle,
+      context, // Pass the context here
       onEvent: (event) => {
         if (event.type === 'design_system') {
-          console.log('--- RECEIVED DESIGN BRIEF IN BROWSER ---', event.designSystem);
-          if (setDesignSystem) setDesignSystem(event.designSystem);
-          else setPresentation({ designSystem: event.designSystem });
+          setDesignSystem(event.designSystem);
         } else if (event.type === 'recipe') {
           if (typeof event.index === 'number') {
             usePresentationStore.setState((state) => {

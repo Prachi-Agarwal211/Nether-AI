@@ -9,10 +9,12 @@ export const useUIStore = create((set) => ({
   isLoading: false,
   error: null,
   isSidebarOpen: false,
+  isFullscreen: false, // Added for fullscreen mode
 
   // Actions
   setActiveView: (view) => set({ activeView: view }),
   setLoading: (isLoading) => set({ isLoading, error: null }), // Clear error on new loading state
   setError: (error) => set({ error, isLoading: false }), // Clear loading on error
   toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+  setFullscreen: (isFullscreen) => set({ isFullscreen }), // Added action
 }));

@@ -10,9 +10,12 @@ const initialState = {
   slideRecipes: [],
   themeRuntime: null,
   designSystem: null,
-  selectedTheme: null, // Added for theme library
+  selectedTheme: null,
   activeSlideIndex: 0,
   recentPresentations: [],
+  audience: '',
+  tone: '',
+  objective: '',
 };
 
 export const usePresentationStore = create((set) => ({
@@ -28,7 +31,7 @@ export const usePresentationStore = create((set) => ({
   setSlideCount: (slideCount) => set((state) => ({ presentation: { ...state.presentation, slideCount } })),
   setSlideRecipes: (recipes) => set((state) => ({ presentation: { ...state.presentation, slideRecipes: recipes, activeSlideIndex: 0 } })),
   setDesignSystem: (designSystem) => set((state) => ({ presentation: { ...state.presentation, designSystem } })),
-  setSelectedTheme: (theme) => set((state) => ({ presentation: { ...state.presentation, selectedTheme: theme } })), // New action
+  setSelectedTheme: (theme) => set((state) => ({ presentation: { ...state.presentation, selectedTheme: theme } })),
   setActiveSlideIndex: (index) => set((state) => {
     const lastIndex = Math.max(0, (state.presentation.slideRecipes?.length || 1) - 1);
     const newIndex = Math.max(0, Math.min(index, lastIndex));
@@ -42,5 +45,18 @@ export const usePresentationStore = create((set) => ({
       ...prev.filter((p) => p.id !== id).slice(0, 19),
     ];
     return { presentation: { ...state.presentation, recentPresentations: deduped } };
+  }),
+  // --- NEW ACTION FOR SLIDE-LEVEL EDITING ---
+  updateSlideRecipe: (index, newRecipe) => set((state) => {
+    const newSlideRecipes = [...state.presentation.slideRecipes];
+    if (index >= 0 && index < newSlideRecipes.length) {
+      newSlideRecipes[index] = newRecipe;
+    }
+    return {
+      presentation: {
+        ...state.presentation,
+        slideRecipes: newSlideRecipes,
+      },
+    };
   }),
 }));

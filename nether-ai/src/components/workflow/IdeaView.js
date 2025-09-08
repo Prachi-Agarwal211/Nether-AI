@@ -14,7 +14,6 @@ import { LoadingSpinner } from '../shared/LoadingSpinner';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
 
-// Left Sidebar Component
 const ChatHistorySidebar = ({ isSidebarOpen, setIsSidebarOpen, recent, onNewChat, onSelect }) => {
   return (
     <>
@@ -108,7 +107,7 @@ const AngleCards = ({ angles, onChooseAngle, isLoading }) => {
 
 export default function IdeaView() {
   const { setLoading, setError, setActiveView } = useUIStore();
-  const { presentation, setTopic, setStrategicAngles, setChosenAngle, setBlueprint, setSlideCount, resetPresentation, addRecentPresentation } = usePresentationStore();
+  const { presentation, setPresentation, setStrategicAngles, setChosenAngle, setBlueprint, setSlideCount, resetPresentation, addRecentPresentation } = usePresentationStore();
   const { isLoading } = useUIStore();
 
   const fileInputRef = useRef(null);
@@ -133,7 +132,7 @@ export default function IdeaView() {
 
   const handleSelectRecent = (item) => {
     if (item?.topic) {
-      setTopic(item.topic);
+      setPresentation({ topic: item.topic });
       setInputTopic(item.topic);
       setMessages([
         { type: 'ai', text: "Welcome back. You can refine or create a new presentation for this topic." },
@@ -153,11 +152,6 @@ export default function IdeaView() {
     setError('');
 
     try {
-      // Update topic in store if this is the first user message
-      if (messages.filter(m => m.type === 'user').length === 0) {
-        setTopic(topicToSend);
-      }
-      
       const result = await aiService.continueConversation({
         messages: newMessages
           .filter(m => ['user', 'ai'].includes(m.type))
@@ -166,6 +160,11 @@ export default function IdeaView() {
             content: m.text
           }))
       });
+
+      // [NEW] Check for and save context from AI response
+      if (result.context) {
+        setPresentation(result.context);
+      }
       
       if (result.response_type === 'text') {
         setMessages(prev => [...prev, { type: 'ai', text: result.content }]);
@@ -200,7 +199,8 @@ export default function IdeaView() {
     setMessages(prev => [...prev, { type: 'ai', text: `Great choice! Generating a blueprint based on the "${angle.title}" angle.` }]);
 
     try {
-      const result = await aiService.generateBlueprint(presentation.topic, angle, presentation.slideCount);
+      const { topic, slideCount, audience, tone, objective } = presentation;
+      const result = await aiService.generateBlueprint(topic, angle, slideCount, { audience, tone, objective });
       setBlueprint(result);
       addRecentPresentation({ title: angle.title, topic: presentation.topic });
       setActiveView('outline');
@@ -242,7 +242,6 @@ export default function IdeaView() {
       if (!text.trim()) throw new Error('No text could be extracted from the file.');
       
       toast.dismiss(toastId);
-      // Use the extracted text as the first message in the conversation
       handleSendMessage(`Based on the attached document, here's the topic: ${text.trim().substring(0, 1500)}...`);
 
     } catch (e) {
@@ -256,7 +255,7 @@ export default function IdeaView() {
     
   return (
     <div className="h-full w-full flex overflow-hidden transition-opacity duration-300">
-      {isLoading && !messages.length ? ( // Show full-page loader only on initial load
+      {isLoading && !messages.length ? (
         <div className="flex flex-col items-center justify-center h-full w-full">
           <LoadingSpinner />
           <p className="mt-4 text-gray-600">Initializing Nether AI...</p>

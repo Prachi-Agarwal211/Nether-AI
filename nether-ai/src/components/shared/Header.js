@@ -66,12 +66,11 @@ export default function Header() {
       transition={{ duration: 0.5, ease: 'easeOut' }}
       className="sticky top-0 z-50"
     >
-      {/* [IMPROVED] Changed to a 3-column grid for perfect alignment */}
       <div className="w-full px-4 sm:px-6 lg:px-8 h-20 grid grid-cols-3 items-center">
-        {/* Left Column: Logo */}
+        {/* Left Column: Logo & Name */}
         <div className="flex items-center gap-3">
-          <motion.div whileHover={{ scale: 1.05 }} className="animate-subtle-pulse">
-            <Image src="/logo.png" alt="Nether AI Logo" width={48} height={48} className="opacity-100" />
+          <motion.div whileHover={{ scale: 1.05 }}>
+            <Image src="/logo.PNG" alt="Reverbex Technology Logo" width={48} height={48} className="opacity-100" />
           </motion.div>
           <div className="font-sans font-medium text-white/90 tracking-normal text-sm md:text-base text-heading-glow">NETHER AI</div>
         </div>

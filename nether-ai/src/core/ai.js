@@ -4,7 +4,7 @@ import { generateImagePublicUrl } from './image-generation';
 import toast from 'react-hot-toast';
 export { generateImagePublicUrl };
 
-// Universal helper to call the Gemini API with retry and error handling
+// [FIXED] Universal helper with robust JSON parsing and error handling
 async function callGoogleGemini({ system, user, json = true }, retries = 3) {
   const url = `${AI_CONFIG.endpointBase}/models/${AI_CONFIG.model}:generateContent`;
 
@@ -24,35 +24,37 @@ async function callGoogleGemini({ system, user, json = true }, retries = 3) {
       });
 
       if (!response.ok) {
-        let errorText = '';
-        try { errorText = await response.text(); } catch {}
-        const errorMsg = `Google Gemini API error: ${response.status} ${response.statusText} ${errorText}`;
-        if (attempt === retries) {
-          toast.error(`AI request failed after ${retries} attempts: ${errorMsg}`);
-          throw new Error(errorMsg);
-        }
-        toast(`AI request failed (attempt ${attempt}/${retries}), retrying...`, { icon: '🔄' });
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
-        continue;
+        const errorBody = await response.text();
+        throw new Error(`Google Gemini API error: ${response.status} ${response.statusText} | Body: ${errorBody}`);
       }
 
       const data = await response.json();
       const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
       if (!rawText) {
-        const errorMsg = 'Empty response from AI';
-        if (attempt === retries) {
-          toast.error(errorMsg);
-          throw new Error(errorMsg);
+        if (attempt < retries) continue; // Retry if response is empty
+        throw new Error('Empty response from AI');
+      }
+
+      if (json) {
+        try {
+          return JSON.parse(rawText);
+        } catch (parseError) {
+          console.error("--- AI JSON PARSE FAILED ---");
+          console.error("Raw AI Response:", rawText);
+          console.error("Parse Error:", parseError);
+          if (attempt < retries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            continue; // Retry on parse failure
+          }
+          throw new Error('AI returned invalid JSON format.');
         }
-        continue;
       }
 
-      if (attempt > 1) {
-        toast.success('AI request succeeded after retry');
-      }
+      return rawText; // Return plain text if json=false
 
-      return json ? JSON.parse(rawText) : rawText;
     } catch (error) {
+      console.error(`AI request failed on attempt ${attempt}/${retries}:`, error.message);
       if (attempt === retries) {
         toast.error(`AI request failed: ${error.message}`);
         throw error;
@@ -63,137 +65,125 @@ async function callGoogleGemini({ system, user, json = true }, retries = 3) {
   }
 }
 
-// [NEW] Logic for conversational interaction
+// Logic for conversational interaction with strict angle generation rules
 export async function haveConversation(chatHistory) {
-  const system = `You are Nether AI, an expert presentation strategist. Your goal is to help users craft the perfect presentation by having a natural conversation.
+  const system = `You are Nether AI, an expert presentation strategist. Your goal is to help users craft the perfect presentation by having a natural, friendly conversation.
 
-  **Your process is as follows:**
-  1.  **Engage and Clarify:** Start by understanding the user's needs. Ask clarifying questions about their topic, audience, goals, and desired tone. Be friendly, concise, and helpful.
-  2.  **Analyze:** Analyze the user's responses from the chat history.
-  3.  **Decide When to Generate:** Once you have a clear understanding of the topic AND the intended audience, you can proceed to generate strategic angles. Do NOT generate angles prematurely if you lack key information.
-  4.  **Generate Angles:** When ready, generate 4 diverse, compelling strategic angles for the presentation.
-  
+  **Your Core Task:**
+  Your primary goal is to understand three key things before generating ideas:
+  1.  **Topic:** What is the presentation about?
+  2.  **Audience:** Who is this presentation for? (e.g., investors, students, executives)
+  3.  **Objective:** What is the goal of this presentation? (e.g., to get funding, to educate, to sell a product)
+
+  **Your Process:**
+  1.  **Engage and Clarify:** If the user only provides a topic, ask clarifying questions to understand the Audience and Objective. Be concise and helpful.
+  2.  **Analyze and Extract:** As the user responds, identify and extract the topic, audience, and objective from the conversation.
+  3.  **Proceed When Ready:** Once you have a reasonable understanding of the Topic, Audience, and Objective, you can generate strategic angles.
+  4.  **Fallback:** If the user is not providing details, make a reasonable assumption based on the topic and proceed.
+
   **Output Format Rules:**
   - Your entire response MUST be a single, valid JSON object.
-  - If you are asking a question or making a statement to continue the conversation, use this format:
+  - **While conversing:** Use this format. If you have extracted any context, include it.
     {
       "response_type": "text",
-      "content": "Your text response here."
+      "content": "Your text response here.",
+      "context": {
+        "topic": "The identified topic, if any",
+        "audience": "The identified audience, if any",
+        "objective": "The identified objective, if any"
+      }
     }
-  - If you have gathered enough information and are ready to provide the strategic angles, use this format:
+  - **When ready to provide angles:** Use this format, and follow the angle generation rules precisely.
     {
       "response_type": "angles",
       "content": {
         "angles": [
-          { "angle_id": "angle_1", "title": "Angle Title 1", "key_points": ["Point A", "Point B", "Point C"] },
-          { "angle_id": "angle_2", "title": "Angle Title 2", "key_points": ["Point D", "Point E", "Point F"] },
-          { "angle_id": "angle_3", "title": "Angle Title 3", "key_points": ["Point G", "Point H", "Point I"] },
-          { "angle_id": "angle_4", "title": "Angle Title 4", "key_points": ["Point J", "Point K", "Point L"] }
+          { "angle_id": "angle_1", "title": "...", "key_points": ["...", "...", "..."] },
+          { "angle_id": "angle_2", "title": "...", "key_points": ["...", "...", "..."] },
+          { "angle_id": "angle_3", "title": "...", "key_points": ["...", "...", "..."] },
+          { "angle_id": "angle_4", "title": "...", "key_points": ["...", "...", "..."] }
         ]
       }
     }
-  
-  **Example Conversation Flow:**
-  - User: "I need to make a presentation about our new software."
-  - You: (Returns text response) { "response_type": "text", "content": "Sounds great! Who will you be presenting this to? Are they technical users, executives, or potential customers?" }
-  - User: "It's for potential customers."
-  - You: (Returns angles response) { "response_type": "angles", "content": { "angles": [...] } }`;
+    
+  **CRITICAL RULES FOR ANGLE GENERATION:**
+  - **YOU MUST GENERATE EXACTLY 4 ANGLES.** Your work will be rejected if the count is not four.
+  - Before responding, verify that the 'angles' array contains exactly four distinct items.
+  - Each angle must have a compelling title and 3 specific key points.
+  - Tailor the angles to the audience and objective you have identified.`;
 
   const user = `This is the current chat history: ${JSON.stringify(chatHistory)}. Please provide your next response based on the rules.`;
 
   return await callGoogleGemini({ system, user, json: true });
 }
 
-// Logic for generating angles
-export async function generateStrategicAngles(topic, prefs = {}) {
-  const system = `You are a world-class presentation strategist and storytelling expert. You excel at identifying the most compelling narrative angles for any topic. Your output must be a single, valid JSON object with an "angles" array, and nothing else.`;
+// --- [NEW ARCHITECTURE] BLUEPRINT GENERATION ---
 
-  const user = `
-Generate 4 strategic angles for a presentation on the topic: "${topic}".
+// STEP 1: The AI acts as a researcher to generate a rich "brain dump" of content.
+async function generateOutlineContent(topic, angle, slideCount, { audience, objective }) {
+    const system = `You are an expert content researcher and writer. Your task is to generate a comprehensive, high-quality block of text that will serve as the raw material for a presentation. Do not structure it into slides. Just provide the core information.`;
 
-**ANGLE SELECTION STRATEGY:**
-Choose 4 diverse angles from these proven storytelling frameworks, adapting them to fit the topic:
+    const user = `
+    Please generate a rich, detailed block of text for a ${slideCount}-slide presentation on the topic: "${topic}".
+    The chosen narrative angle is: "${angle?.title || 'Not specified'}".
+    The target audience is: "${audience || 'General'}".
+    The objective is: "${objective || 'To inform'}".
 
-**Business/Product Topics:**
-- "The Innovation Journey" (origin story, evolution, breakthroughs)
-- "The Competitive Edge" (market position, differentiators, advantages)
-- "The User Impact" (customer success, transformation, value delivered)
-- "The Future Vision" (roadmap, emerging trends, next chapter)
+    Your text should include all the key points, facts, data, and narrative elements needed to build the entire presentation. Structure your response as a series of paragraphs, covering all necessary aspects of the topic from introduction to conclusion. This is a "brain dump" of all the information needed.
+    
+    **Output only the raw text, with no JSON formatting.**`;
 
-**Educational/Informational Topics:**
-- "The Foundation" (core concepts, principles, building blocks)
-- "The Real-World Application" (practical uses, case studies, examples)
-- "The Common Challenges" (problems solved, obstacles overcome)
-- "The Expert Insights" (advanced techniques, best practices, pro tips)
+    return await callGoogleGemini({ system, user, json: false });
+}
 
-**Industry/Market Topics:**
-- "The Current Landscape" (market overview, key players, trends)
-- "The Transformation Story" (how things have changed, disruption)
-- "The Opportunities Ahead" (growth areas, emerging markets, potential)
-- "The Strategic Approach" (how to succeed, winning strategies)
+// STEP 2: The AI acts as a structurer, organizing the rich content into a blueprint.
+async function generateBlueprintFromContent(topic, angle, slideCount, contentBlock, { audience, tone, objective }) {
+    const system = `You are an expert presentation outliner. You will be given a block of pre-written content. Your ONLY task is to structure this content into a detailed blueprint for a presentation of exactly ${slideCount} slides. You must follow the schema precisely.`;
 
-**REQUIREMENTS:**
-1. Each angle must have a compelling, action-oriented title (4-8 words max)
-2. Each angle must include 3 specific, concrete key points (not generic statements)
-3. Angles should appeal to different audience interests and learning styles
-4. Include visual storytelling potential in your angle selection
-5. Ensure angles can support 8-12 slides of rich content each
+    const user = `
+    **Pre-written Research Content:**
+    ---
+    ${contentBlock}
+    ---
 
-**ENHANCED SCHEMA WITH VISUAL HINTS:**
-{
-  "angles": [
+    **Your Task:**
+    Structure the content above into a blueprint for a ${slideCount}-slide presentation on the topic "${topic}".
+
+    **CRITICAL INSTRUCTIONS:**
+    1.  **Use the Provided Content:** You MUST create the \`slide_summary\` for each slide by selecting, combining, and rephrasing sentences and ideas **directly from the research content provided**. This is your source of truth.
+    2.  **VALID LAYOUTS ONLY:** For the \`visual_element.type\`, you MUST ONLY use a value from this list: ['TitleSlide', 'Agenda', 'TwoColumn', 'Quote', 'SectionHeader', 'FeatureGrid', 'ProcessDiagram', 'DataChart', 'Timeline', 'ComparisonTable', 'TeamMembers', 'KpiGrid', 'FullBleedImageLayout', 'TitleAndBulletsLayout', 'ContactInfoLayout'].
+    3.  **GUARANTEE STRUCTURE:** The first slide must be 'TitleSlide', the second 'Agenda', and the last a closing slide.
+    
+    **OUTPUT SCHEMA (Follow this pattern exactly):**
     {
-      "angle_id": "angle_1_[category]",
-      "title": "Compelling Action-Oriented Title",
-      "key_points": [
-        "Specific, concrete point with measurable impact",
-        "Unique insight or surprising fact about the topic",
-        "Clear benefit or outcome for the audience"
-      ],
-      "visual_theme": "suggested visual approach (e.g., 'timeline', 'comparison', 'process', 'data-driven')",
-      "audience_appeal": "primary audience motivation (e.g., 'decision-makers', 'technical-experts', 'general-audience')"
-    }
-  ]
+      "slides": [
+        {
+          "slide_id": "slide_1",
+          "slide_title": "Slide Title Here",
+          "objective": "Objective of this slide.",
+          "slide_summary": "A rich, detailed paragraph created by selecting and rephrasing sentences from the provided research content. This must not be a simple list.",
+          "visual_element": { "type": "A valid layout type from the list" }
+        }
+      ]
+    }`;
+
+    return await callGoogleGemini({ system, user, json: true });
 }
 
-Make each angle distinctly different in approach, ensuring the user has genuinely diverse storytelling options.`;
+// COORDINATOR: The main blueprint function now orchestrates the new two-step process.
+export async function generateBlueprint(topic, angle, slideCount = 10, context) {
+    // Step 1: Generate the rich, unstructured content block.
+    console.log('[Blueprint] Step 1: Generating raw content...');
+    const contentBlock = await generateOutlineContent(topic, angle, slideCount, context);
 
-  return await callGoogleGemini({ system, user, json: true });
+    // Step 2: Structure the rich content into a high-quality blueprint.
+    console.log('[Blueprint] Step 2: Structuring content into blueprint...');
+    const richBlueprint = await generateBlueprintFromContent(topic, angle, slideCount, contentBlock, context);
+    
+    console.log('[Blueprint] Finished creating rich blueprint.');
+    return { topic, ...richBlueprint };
 }
 
-// Logic for generating the blueprint
-export async function generateBlueprint(topic, angle, slideCount = 10, prefs = {}) {
-  const system = `You are a world-class presentation designer and storyteller. Your task is to create a complete visual and narrative blueprint for a presentation of exactly ${slideCount} slides.
-
-  RULES:
-  1.  **Structure is Mandatory:** The blueprint MUST begin with a 'Title' slide (slide 1) and an 'Agenda' slide (slide 2), and end with a 'Closing', 'Thank You', or 'Q&A' slide. This structure is non-negotiable.
-  2.  **Angle-Adapted Narrative:** You MUST adapt the narrative flow of the content slides to fit the chosen angle's title: "${angle?.title || ''}".
-      - If the angle is historical (e.g., "The Innovation Story"), use a chronological flow.
-      - If the angle is persuasive (e.g., "Why We Will Win"), use a Problem/Solution flow.
-      - If the angle is explanatory (e.g., "A Guide to our Products"), use a thematic or sequential flow.
-  3.  **Visual Design is Key:** For EACH slide, you MUST specify a 'visual_element'. This tells the designer HOW to lay out the content.
-  4.  **Image Integration:** For content slides (not Title/Agenda), STRONGLY consider adding an 'image_suggestion' when it would enhance understanding. Be specific about what type of image would work best (e.g., 'professional team meeting', 'modern data visualization', 'futuristic technology concept').
-  5.  **Available Visual Elements:** ['TitleSlide', 'Agenda', 'TwoColumn', 'Quote', 'SectionHeader', 'FeatureGrid', 'ProcessDiagram', 'DataChart', 'Timeline', 'ComparisonTable', 'TeamMembers', 'KpiGrid'].
-
-  Your output MUST be ONLY the valid JSON object matching this exact schema:
-  {
-    "slides": [{
-      "slide_id": "string",
-      "slide_title": "string",
-      "objective": "string",
-      "content_points": ["string"],
-      "visual_element": {
-        "type": "string",
-        "image_suggestion"?: "string"
-      }
-    }]
-  }`;
-
-  const user = `Create a blueprint for the topic: "${topic}", following the chosen angle: "${angle?.title || ''}". The presentation must have exactly ${slideCount} slides.`;
-
-  const result = await callGoogleGemini({ system, user, json: true });
-  return { topic, ...result };
-}
 
 // Logic for refining the blueprint
 export async function refineBlueprint(blueprint, message, chatHistory = []) {
@@ -203,222 +193,80 @@ export async function refineBlueprint(blueprint, message, chatHistory = []) {
   return await callGoogleGemini({ system, user, json: true });
 }
 
-/**
- * Generates a complete design system brief with:
- * - Unique theme name
- * - Contrast-aware color palette
- * - Background system recipes
- * - Typography system
- * - Style tokens
- */
+// "Art Director" prompt for generating sophisticated design systems
 export async function generateDesignSystem(topic, angle) {
-  const system = `You are a visionary AI Art Director. Create a unique, high-quality design system from scratch that will define the visual DNA of a presentation.
+  const system = `You are a visionary AI Art Director with a keen eye for modern, professional design. Create a unique, high-quality design system from scratch that will define the visual DNA of a presentation. Your output must be a single, valid JSON object.`;
 
-**Your Creative Mandate:**
-1. **Theme Identity** - Invent a unique themeName (2-3 words) that captures the essence of the topic
-2. **Color System** - Generate a complete colorPalette with:
-   - Primary, secondary, and accent colors
-   - Background/text pairs meeting WCAG AA contrast
-   - Semantic colors (success, warning, danger)
-3. **Background Recipes** - Define 3+ advanced background types:
-   - Meshes: Complex gradient meshes with 3+ colors
-   - Aurora: Soft, organic light effects
-   - Noise: Subtle textured backgrounds
-   - Glass: Modern frosted glass effects
-4. **Typography** - Create a typography system with:
-   - Font pairings (heading + body)
-   - Text effects (gradients, shadows)
-   - Responsive sizing scale
-5. **Style Tokens** - Define reusable design tokens for:
-   - Borders, shadows, blurs
-   - Animation properties
-   - Spacing system
+  const user = `Create a cutting-edge design system for a presentation on the topic: "${topic}" with the angle: "${angle?.title || ''}".
 
-**Output Format:**
+**CRITICAL TASKS:**
+1.  **Infer Art Direction:** From the topic, first infer an appropriate artistic direction (e.g., 'Corporate & Professional', 'Minimalist & Calm', 'Bold & Energetic'). This direction must guide your font and color choices.
+2.  **Generate Sophisticated Colors:**
+    -   Create a complete, harmonious color palette.
+    -   **Intelligent Text Color Rule:** Based on the \`background.default\` color you choose, you MUST generate a \`text.primary\` color that is NOT pure \`#000000\` or \`#FFFFFF\`. It must have a WCAG AA contrast ratio and be a dark, desaturated shade of the primary or secondary color to create a more professional, modern look.
+3.  **Define Backgrounds & Fonts:** Define advanced background recipes and select professional font pairings that match the art direction.
+4.  **Provide Tokens:** Define standard style tokens for borders, shadows, and spacing.
+
+**OUTPUT SCHEMA (must be exact):**
 {
   "themeName": "Unique Theme Name",
-  "colorPalette": {
-    "primary": {
-      "main": "#RRGGBB",
-      "light": "#RRGGBB",
-      "dark": "#RRGGBB"
-    },
-    "secondary": {
-      "main": "#RRGGBB",
-      "light": "#RRGGBB",
-      "dark": "#RRGGBB"
-    },
-    "background": {
-      "default": "#RRGGBB",
-      "paper": "#RRGGBB"
-    },
-    "text": {
-      "primary": "#RRGGBB",
-      "secondary": "#RRGGBB"
-    },
-    "semantic": {
-      "success": "#RRGGBB",
-      "warning": "#RRGGBB",
-      "danger": "#RRGGBB"
-    }
-  },
-  "backgroundSystem": {
-    "types": {
-      "mesh": {
-        "colors": ["#RRGGBB", "#RRGGBB", "#RRGGBB"],
-        "angle": 45,
-        "intensity": 0.8
-      },
-      "aurora": {
-        "colors": ["#RRGGBB", "#RRGGBB"],
-        "blur": 80,
-        "opacity": 0.4
-      },
-      "glass": {
-        "blur": 8,
-        "opacity": 0.2
-      }
-    },
-    "recipes": {
-      "default": {"type": "mesh", "variant": "soft"},
-      "title": {"type": "aurora", "variant": "vibrant"},
-      "section": {"type": "glass", "variant": "light"}
-    }
-  },
-  "typography": {
-    "fontFamilies": {
-      "heading": "Font Name",
-      "body": "Font Name"
-    },
-    "textEffects": {
-      "headingGradient": {"colors": ["primary.main", "secondary.main"]},
-      "textShadow": {"color": "rgba(0,0,0,0.1)", "offset": "1px 1px"}
-    }
-  },
-  "styleTokens": {
-    "borderRadius": {
-      "small": "4px",
-      "medium": "8px",
-      "large": "12px"
-    },
-    "shadows": {
-      "small": "0 1px 3px rgba(0,0,0,0.12)",
-      "medium": "0 4px 6px rgba(0,0,0,0.1)",
-      "large": "0 10px 15px rgba(0,0,0,0.1)"
-    },
-    "spacing": {
-      "unit": 8,
-      "section": 64
-    }
-  },
-  "previewColors": {
-    "bg": "#RRGGBB",
-    "text": "#RRGGBB",
-    "accent": "#RRGGBB"
-  }
+  "colorPalette": { "primary": { "main": "#RRGGBB", "light": "#RRGGBB", "dark": "#RRGGBB" }, "secondary": { "main": "#RRGGBB", "light": "#RRGGBB", "dark": "#RRGGBB" }, "background": { "default": "#RRGGBB", "paper": "#RRGGBB" }, "text": { "primary": "#RRGGBB", "secondary": "#RRGGBB" }, "semantic": { "success": "#RRGGBB", "warning": "#RRGGBB", "danger": "#RRGGBB" }},
+  "backgroundSystem": { "types": { "mesh": { "colors": ["#RRGGBB", "#RRGGBB", "#RRGGBB"], "angle": 45 }, "aurora": { "colors": ["#RRGGBB", "#RRGGBB"], "blur": 80, "opacity": 0.4 }}, "recipes": { "default": {"type": "mesh", "variant": "soft"}, "title": {"type": "aurora", "variant": "vibrant"}}},
+  "typography": { "fontFamilies": { "heading": "Font Name", "body": "Font Name" }},
+  "styleTokens": { "borderRadius": { "medium": "8px" }, "shadows": { "medium": "0 4px 6px rgba(0,0,0,0.1)"}, "spacing": { "unit": 8 }},
+  "previewColors": { "bg": "#RRGGBB", "text": "#RRGGBB", "accent": "#RRGGBB" }
 }`;
-
-  const user = `Create a cutting-edge design system for a presentation about:
-Topic: "${topic}"
-Angle: "${angle?.title || ''}"
-
-Design Direction:
-- Should feel modern and professional
-- Incorporate visual motifs from the topic
-- Ensure excellent readability and accessibility
-- Include at least one innovative visual effect`;
 
   return await callGoogleGemini({ system, user, json: true });
 }
 
-/**
- * [NEW & IMPROVED] Stages 2 & 3: The Content Strategist & Asset Producer
- * Analyzes a single slide's content to choose the best layout, elaborate on the text,
- * structure the data, and generate specific image prompts.
- */
-export async function generateRecipeForSlide(slideBlueprint, topic, designSystem) {
-  const system = `You are a world-class Information Designer and Content Strategist. Your task is to convert a raw slide blueprint into a rich, detailed, and structured JSON recipe. You MUST follow all rules and output only the valid JSON.`;
+// "Content Strategist" prompt that correctly uses the rich summary
+export async function generateRecipeForSlide(slideBlueprint, topic, designSystem, { audience, tone, objective }) {
+  const system = `You are an expert Content Strategist and Information Designer. Your task is to transform a detailed slide blueprint into a rich, complete, and engaging slide recipe. You MUST follow all rules and output only valid JSON.`;
 
   const user = `
-    // This is the global Design System you must adhere to.
     "designSystem": ${JSON.stringify(designSystem || {})}
-
-    // This is the blueprint for the SINGLE slide you must design.
     "slideBlueprint": ${JSON.stringify(slideBlueprint || {})}
+    "availableLayouts": ["TitleSlide", "Agenda", "SectionHeader", "TwoColumn", "FeatureGrid", "ProcessDiagram", "DataChart", "Timeline", "ComparisonTable", "Quote", "KpiGrid", "FullBleedImageLayout", "TitleAndBulletsLayout", "ContactInfoLayout", "TeamMembers"]
 
-    // These are the ONLY layouts you are allowed to choose from.
-    "availableLayouts": [
-      "TitleSlide", "Agenda", "SectionHeader", "TwoColumn", "FeatureGrid", 
-      "ProcessDiagram", "DataChart", "Timeline", "ComparisonTable", "Quote", 
-      "KpiGrid", "FullBleedImageLayout", "TitleAndBulletsLayout", "ContactInfoLayout", "TeamMembers"
-    ]
+    **CONTEXT:**
+    - **Audience:** "${audience || 'General'}"
+    - **Tone:** "${tone || 'Professional'}"
+    - **Objective:** "${objective || 'To inform'}"
 
-    **CRITICAL INSTRUCTIONS - YOU MUST FOLLOW ALL OF THESE:**
+    **CRITICAL CONTENT STRATEGY INSTRUCTIONS:**
 
-    1.  **CHOOSE THE BEST LAYOUT:** Select the MOST appropriate layout from 'availableLayouts' that fits the blueprint's intent:
-        - 'TitleSlide': Only for slide 1 (presentation title)
-        - 'Agenda': Only for slide 2 (presentation outline)
-        - 'TitleAndBulletsLayout': For simple content lists, key points
-        - 'TwoColumn': For content with supporting images or side-by-side comparisons
-        - 'FeatureGrid': For showcasing 3-4 features, benefits, or services
-        - 'ProcessDiagram': For step-by-step processes, workflows, timelines
-        - 'DataChart': For statistics, metrics, quantitative data
-        - 'ComparisonTable': For feature comparisons, before/after, pros/cons
-        - 'FullBleedImageLayout': For impactful section breaks, emotional content
-        - 'Quote': For testimonials, key quotes, mission statements
-        - 'KpiGrid': For key performance indicators, metrics dashboard
-        - 'ContactInfoLayout': Only for final slide (contact/thank you)
-        - 'SectionHeader': For major section transitions
-        - 'TeamMembers': For introducing team, leadership, speakers
-
-    2.  **EXPAND THE CONTENT (MANDATORY):** Do not just copy the 'content_points'. You MUST elaborate on them.
-        - Write an introductory 'body' paragraph (2-3 sentences) that sets the context for the slide.
-        - The original 'content_points' should be used as a 'bullets' or 'items' array.
-
-    3.  **GENERATE SPEAKER NOTES (MANDATORY):** For EVERY slide, you MUST write 2-4 sentences of insightful 'speaker_notes'. These should contain extra details, data, or talking points not visible on the slide.
-
-    4.  **CREATE CONTEXTUAL DATA (IF APPLICABLE):** If you choose 'DataChart', 'KpiGrid', or 'ComparisonTable', you MUST generate realistic and contextually relevant data based on the slide's topic. DO NOT use generic placeholder data.
-
-    5.  **SUGGEST CONTEXTUAL ICONS (IF APPLICABLE):** If the layout is 'FeatureGrid' or 'ProcessDiagram', for each item/feature, you MUST suggest a relevant icon name from the 'lucide-react' library (e.g., "TrendingUp", "ShieldCheck", "Users"). Add it as an 'icon' property to each feature object.
-
-    6.  **CREATE ARTISTIC IMAGE PROMPTS:** If the slide requires an image ('TwoColumn', 'FullBleedImageLayout'), create a highly specific and artistic 'image_prompt' based on slide type:
-        - For business/corporate slides: 'professional team collaboration, modern office, cinematic lighting'
-        - For technology slides: 'futuristic digital interface, holographic displays, neon lighting, 3D render'
-        - For data/analytics slides: 'abstract data visualization, flowing charts, geometric patterns, blue tones'
-        - For timeline slides: 'journey concept, pathway, progression, minimalist design'
-        - For comparison slides: 'balance concept, scales, versus imagery, clean composition'
-        - For closing slides: 'success celebration, handshake, achievement, warm lighting'
-        - Always include style keywords like 'photorealistic', 'cinematic lighting', 'professional photography', '4K quality', 'modern aesthetic'. Otherwise, set to null.
-
-    7.  **USE LAYOUT OPTIONS DYNAMICALLY:** For the 'TwoColumn' layout, randomly choose to set an 'imagePosition' property to either 'left' or 'right' to create visual variety in the presentation.
-
-    8.  **CHOOSE A BACKGROUND:** Select the most fitting background variant from 'designSystem.gradients'. Use 'background_title' for 'TitleSlide' and 'FullBleedImageLayout'. Use 'background_subtle' for text-heavy slides like 'TitleAndBulletsLayout'. Default to 'background_default' for others.
+    1.  **MANDATORY PROPS OBJECT:** You MUST structure your response so that all generated content for the slide (titles, body text, bullets, lists, data, etc.) is placed within a nested JSON object under the key \`props\`. This is a non-negotiable rule.
+    2.  **Core Task: Arrange the Summary:** Your main task is to artistically arrange the content from the provided \`slide_summary\` into a visually balanced and informative slide. You are not just expanding points; you are translating a detailed plan into a final product.
+    3.  **Enforce Content Variety:** Create a mix of content formats. For some slides, use a short introductory paragraph followed by 3-4 key bullet points. For others, a well-written, concise paragraph of 3-5 lines is more effective.
+    4.  **GUARANTEE NO EMPTY SLIDES:** Under no circumstances should a slide be returned with empty content fields inside \`props\`. The \`slide_summary\` provides all the information you need.
+    5.  **WRITE INSIGHTFUL SPEAKER NOTES:** For EVERY slide, write 2-4 sentences of 'speaker_notes' containing extra details.
+    6.  **CREATE ARTISTIC IMAGE PROMPTS:** If an image is needed, create a specific 'image_prompt'. Otherwise, set to null.
 
     **YOUR RESPONSE MUST BE A SINGLE, VALID JSON OBJECT. NO MARKDOWN, NO COMMENTARY.**
-    
-    **EXAMPLE FOR A 'FeatureGrid' SLIDE:**
-    {
-      "layout_type": "FeatureGrid",
-      "backgroundVariant": "background_default",
-      "props": {
-        "title": "Our Core Features",
-        "body": "Our platform is built on three pillars that ensure reliability, scalability, and security for all our users. Here's how each component contributes to a seamless experience.",
-        "features": [
-          { "icon": "TrendingUp", "title": "Scalable Infrastructure", "description": "Our architecture handles millions of requests, scaling automatically with user demand." },
-          { "icon": "ShieldCheck", "title": "Enterprise-Grade Security", "description": "We protect your data with end-to-end encryption and regular security audits." },
-          { "icon": "Users", "title": "Collaborative Workspace", "description": "Work together with your team in a shared, real-time environment." }
-        ]
-      },
-      "image_prompt": null,
-      "speaker_notes": "Mention that our uptime last quarter was 99.99%. Also, highlight that our security protocols are compliant with ISO 27001 standards."
-    }
   `;
 
   return await callGoogleGemini({ system, user, json: true });
 }
 
-// Public: stream slide recipes one by one
-// Note: Orchestration for streaming slide recipes now lives in the API route
-// (src/app/api/ai/route.js) where slides are generated in parallel after the
-// design system is created. This avoids confusion and keeps ai.js focused on
-// single-call primitives.
+// Logic for refining a single slide recipe
+export async function refineSlideRecipe(slideRecipe, message) {
+    const system = `You are an expert slide editor AI. You will be given a JSON object representing a single presentation slide and a user's instruction for how to change it. Your task is to intelligently modify the JSON object to fulfill the user's request and return only the updated, valid JSON object.
+
+    **RULES:**
+    1.  **Modify, Don't Replace:** Analyze the user's request and apply the changes directly to the provided JSON.
+    2.  **Maintain Schema:** The returned JSON object must have the exact same structure as the input (layout_type, props, speaker_notes, etc.).
+    3.  **Handle Content Changes:** Modify the 'title', 'body', and 'bullets' properties within the 'props' object as requested.
+    4.  **Return Only JSON:** Your entire output must be the raw, updated JSON object, with no commentary or markdown.`;
+
+    const user = `
+    Here is the current slide's JSON recipe:
+    ${JSON.stringify(slideRecipe)}
+
+    Here is the user's instruction:
+    "${message}"
+
+    Now, return the modified JSON object.`;
+    
+    return await callGoogleGemini({ system, user, json: true });
+}

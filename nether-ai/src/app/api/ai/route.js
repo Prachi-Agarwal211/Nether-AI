@@ -43,29 +43,6 @@ async function saveThemeToDatabase(designSystem) {
   }
 }
 
-// Helper to create a streaming SSE response from an async generator
-function createStreamingResponse(iterator) {
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    async pull(controller) {
-      const { value, done } = await iterator.next();
-      if (done) {
-        controller.close();
-      } else {
-        const payload = `data: ${JSON.stringify(value)}\n\n`;
-        controller.enqueue(encoder.encode(payload));
-      }
-    },
-  });
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-    },
-  });
-}
-
 export async function POST(req) {
   try {
     ensureApiKey();
@@ -75,52 +52,71 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Missing action or payload' }, { status: 400 });
     }
 
-    // Streaming slide recipe generation with design system first (then parallel slide recipe generation)
+    const context = {
+        audience: payload.audience,
+        tone: payload.tone,
+        objective: payload.objective,
+    };
+
     if (action === 'generate_recipes_stream') {
-      const { blueprint, topic, angle, selectedTheme } = payload;
+      console.log('[API] Received request for generate_recipes_stream');
+      let { blueprint, topic, angle, selectedTheme } = payload;
+
+      // --- DYNAMIC AGENDA GENERATION LOGIC ---
+      if (blueprint && blueprint.slides && blueprint.slides.length > 2) {
+        // Extract titles from all slides *after* the Agenda slide
+        const agendaTitles = blueprint.slides.slice(2).map(slide => slide.slide_title);
+        
+        // Find the Agenda slide (should be at index 1) and inject the titles into its summary
+        if (blueprint.slides[1] && blueprint.slides[1].visual_element.type === 'Agenda') {
+          console.log('[API] Dynamically injecting agenda with titles:', agendaTitles);
+          // Create a summary from the titles for the AI to work with
+          blueprint.slides[1].slide_summary = "This is the agenda for the presentation. It will cover the following topics: " + agendaTitles.join(', ');
+          // We can also add the raw points if the layout needs them
+          blueprint.slides[1].content_points = agendaTitles;
+        }
+      }
+      // --- END OF AGENDA LOGIC ---
 
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         async start(controller) {
+          console.log('[API Stream] Starting generation process...');
           let isClosed = false;
           const push = (event) => {
             if (!isClosed) {
               try {
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
               } catch (error) {
-                console.error('[API] Controller enqueue error:', error);
+                console.error('[API Stream] Controller enqueue error:', error);
                 isClosed = true;
               }
             }
           };
           
           try {
-            // Stage 1: Use selected theme or generate new one
             let designSystem = selectedTheme;
             
             if (!designSystem && topic && angle) {
-              console.log('[API] Generating new design system...');
+              console.log('[API Stream] Stage 1: Generating new design system...');
               designSystem = await AiCore.generateDesignSystem(topic, angle);
-              console.log('--- AI-GENERATED DESIGN BRIEF ---', JSON.stringify(designSystem, null, 2));
+              console.log('[API Stream] Stage 1: Design system generated.');
               push({ type: 'design_system', designSystem });
-              
-              // Save new themes (non-blocking)
               if (designSystem) {
                 saveThemeToDatabase(designSystem).catch(console.error);
               }
             } else if (designSystem) {
-              console.log('[API] Using selected theme');
+              console.log('[API Stream] Stage 1: Using selected theme.');
               push({ type: 'design_system', designSystem });
             }
 
-            // Stages 2 & 3: Parallel slide recipe generation (theme-aware)
             const slides = blueprint?.slides || [];
-            console.log(`[API] Stage 2: Starting generation for ${slides.length} slides in parallel.`);
+            console.log(`[API Stream] Stage 2: Starting generation for ${slides.length} slides in parallel.`);
             const t = blueprint?.topic || topic;
-            const promises = slides.map((slideBlueprint, index) =>
-              AiCore.generateRecipeForSlide(slideBlueprint, t, designSystem)
+            const promises = slides.map((slideBlueprint, index) => {
+              console.log(`[API Stream] Generating recipe for slide ${index + 1}...`);
+              return AiCore.generateRecipeForSlide(slideBlueprint, t, designSystem, context)
                 .then(async (recipe) => {
-                  // Optional image generation
                   if (recipe?.image_prompt) {
                     try {
                       const kws = String(recipe.image_prompt).split(/\s+/).filter(Boolean);
@@ -132,40 +128,32 @@ export async function POST(req) {
                     } catch (_) { /* ignore image errors per slide */ }
                   }
                   recipe.slide_id = slideBlueprint.slide_id;
+                  console.log(`[API Stream] Successfully generated recipe for slide ${index + 1}`);
                   push({ type: 'recipe', recipe, index });
-                  console.log(`[API] Successfully generated recipe for slide ${index + 1}`);
                   return recipe;
                 })
                 .catch((error) => {
-                  console.error(`[API] FAILED to generate recipe for slide ${index + 1}:`, error);
+                  console.error(`[API Stream] FAILED to generate recipe for slide ${index + 1}:`, error.message);
                   push({ type: 'error', message: `Failed on slide ${index + 1}: ${error.message}`, index });
                   const fallback = {
                     layout_type: 'FallbackLayout',
-                    props: {
-                      title: `Error Generating Slide ${index + 1}`,
-                      errorMessage: 'The AI failed to create content for this slide. You can retry or refine your outline.'
-                    },
+                    props: { title: `Error Generating Slide ${index + 1}`, errorMessage: error.message },
                     slide_id: slideBlueprint?.slide_id || `error_${index}_${Date.now()}`,
                   };
                   push({ type: 'recipe', recipe: fallback, index });
                   return fallback;
-                })
-            );
+                });
+            });
 
             await Promise.all(promises);
-            console.log('[API] Stage 2 & 3: All slide generations settled.');
+            console.log('[API Stream] Stage 2 & 3: All slide generations settled.');
           } catch (error) {
-            console.error('[API] FATAL STREAM ERROR:', error);
+            console.error('[API Stream] FATAL STREAM ERROR:', error);
             push({ type: 'error', message: `Stream error: ${error.message}` });
           } finally {
-            console.log('[API] Closing stream.');
+            console.log('[API Stream] Closing stream.');
             if (!isClosed) {
-              try {
-                controller.close();
-                isClosed = true;
-              } catch (error) {
-                console.error('[API] Controller close error:', error);
-              }
+              try { controller.close(); isClosed = true; } catch (error) { /* ignore */ }
             }
           }
         },
@@ -187,15 +175,19 @@ export async function POST(req) {
         break;
         
       case 'generate_angles':
-        result = await AiCore.generateStrategicAngles(payload.topic, payload);
+        result = await AiCore.generateStrategicAngles(payload.topic, context);
         break;
 
       case 'generate_blueprint':
-        result = await AiCore.generateBlueprint(payload.topic, payload.angle, payload.slideCount, payload);
+        result = await AiCore.generateBlueprint(payload.topic, payload.angle, payload.slideCount, context);
         break;
 
       case 'refine_blueprint':
         result = await AiCore.refineBlueprint(payload.blueprint, payload.message, payload.chatHistory);
+        break;
+      
+      case 'refine_slide':
+        result = await AiCore.refineSlideRecipe(payload.slideRecipe, payload.message);
         break;
 
       default:
