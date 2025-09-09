@@ -64,6 +64,13 @@ export default function StoryArc({ blueprint }) {
                             </div>
                             )}
                         </div>
+                        
+                        {slide.slide_summary && (
+                          <p className="text-sm text-white/70 mb-3 font-light italic">
+                            {slide.slide_summary}
+                          </p>
+                        )}
+                        
                         <ul className="pl-1 space-y-1.5 text-white/70 text-sm font-light">
                             {(slide.content_points || []).map((point, i) => (
                             <li key={i} className="relative pl-4 before:content-['▸'] before:absolute before:left-0 before:top-0 before:text-peachSoft">

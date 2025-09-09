@@ -1,5 +1,21 @@
 // src/core/themeUtils.js
 
+// Add this function at the top of the file
+export function pickTextColorForBackground(bgHex) {
+  if (!bgHex || !bgHex.startsWith('#')) return '#f0f0f0';
+  try {
+    const rgb = parseInt(bgHex.slice(1), 16);
+    const r = (rgb >> 16) & 0xff;
+    const g = (rgb >> 8) & 0xff;
+    const b = rgb & 0xff;
+    // WCAG Luma Formula
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return luma > 140 ? '#0a0a0a' : '#f0f0f0';
+  } catch (e) {
+    return '#f0f0f0';
+  }
+}
+
 import { generateGradientCss, generateRootCss } from './cssGenerator';
 
 // Simple HSL to Hex converter
@@ -115,33 +131,42 @@ export function generatePalette(baseHex = '#00FFFF') {
 }
 
 export function generateBackgroundCss(brief, variant = 'default') {
-  if (!brief?.backgroundSystem) return brief?.colorPalette?.background?.default || '#000000';
+  if (!brief?.backgroundSystem || !brief?.colorPalette) 
+    return brief?.colorPalette?.background?.default || '#000000';
 
   const { backgroundSystem, colorPalette } = brief;
   const recipe = backgroundSystem.recipes?.[variant];
-  if (!recipe) return colorPalette.background.default;
+  if (!recipe) return colorPalette?.background?.default || '#000000';
 
   const generator = backgroundSystem.types?.[recipe.type];
-  if (!generator) return colorPalette.background.default;
+  if (!generator) return colorPalette?.background?.default || '#000000';
+
+  const parse = (ref) => {
+    if (!ref) return '#000000';
+    if (ref.startsWith('#')) return ref;
+    const keys = ref.split('.');
+    let value = colorPalette;
+    for (const key of keys) {
+      value = value?.[key];
+      if (value === undefined) return '#000000';
+    }
+    return value;
+  };
 
   switch (recipe.type) {
     case 'aurora':
-      const colors = generator.colors.map(ref => parseColor(ref, colorPalette));
-      const opacity = generator.opacity || 0.2;
-      return `
-        radial-gradient(ellipse at 70% 20%, ${colors[0]}${Math.round(opacity*255).toString(16).padStart(2, '0')}, transparent 50%),
-        radial-gradient(ellipse at 30% 80%, ${colors[1]}${Math.round(opacity*255).toString(16).padStart(2, '0')}, transparent 50%),
-        ${colorPalette.background.default}
-      `;
-    case 'mesh':
-      const meshColors = generator.colors.map(ref => parseColor(ref, colorPalette));
-      return `
-        radial-gradient(at 10% 10%, ${meshColors[0]} 0px, transparent 50%),
-        radial-gradient(at 80% 20%, ${meshColors[1]} 0px, transparent 50%),
-        radial-gradient(at 70% 90%, ${meshColors[2]} 0px, transparent 50%),
-        ${colorPalette.background.default}
-      `;
+      const auroraColors = generator.colors?.map(parse) || ['#000000', '#000000'];
+      return `radial-gradient(ellipse at 70% 20%, ${auroraColors[0]}20, transparent 50%), 
+              radial-gradient(ellipse at 30% 80%, ${auroraColors[1]}20, transparent 50%), 
+              ${colorPalette?.background?.default || '#000000'}`;
+    case 'gradient':
+      const gradColors = generator.colors?.map(parse) || ['#000000', '#000000'];
+      const angle = generator.angle || 145;
+      return `linear-gradient(${angle}deg, ${gradColors.join(', ')})`;
+    case 'noise':
+      return `url("data:image/svg+xml,%3Csvg viewBox='0 0 600 600' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"), 
+              ${colorPalette?.background?.default || '#000000'}`;
     default:
-      return colorPalette.background.default;
+      return colorPalette?.background?.default || '#000000';
   }
 }

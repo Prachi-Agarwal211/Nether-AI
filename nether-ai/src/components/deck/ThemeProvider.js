@@ -1,14 +1,17 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { generateCssFromBrief } from '@/core/themeUtils';
 
-const ThemeContext = createContext();
+export function useTheme() {
+    // This hook is now a placeholder, as variables are global.
+    // It can be expanded later if needed.
+    return {}; 
+}
 
-export function ThemeProvider({ children, designBrief }) {
-  const [themeName, setThemeName] = useState('default');
-
+export default function ThemeProvider({ children, designBrief }) {
   const themeCss = useMemo(() => {
+    // If the brief is null or undefined, return an empty string to clear styles.
     if (!designBrief) return '';
     try {
       return generateCssFromBrief(designBrief);
@@ -19,30 +22,21 @@ export function ThemeProvider({ children, designBrief }) {
   }, [designBrief]);
 
   useEffect(() => {
-    if (designBrief?.themeName) {
-      setThemeName(designBrief.themeName);
-      
-      let styleElement = document.getElementById('theme-variables');
-      if (!styleElement) {
-        styleElement = document.createElement('style');
-        styleElement.id = 'theme-variables';
-        document.head.appendChild(styleElement);
-      }
-      styleElement.textContent = themeCss;
+    let styleElement = document.getElementById('dynamic-theme-styles');
+    if (!styleElement) {
+      styleElement = document.createElement('style');
+      styleElement.id = 'dynamic-theme-styles';
+      document.head.appendChild(styleElement);
     }
-  }, [designBrief, themeCss]);
+    // This now correctly clears old styles when themeCss is empty.
+    styleElement.textContent = themeCss;
+  }, [themeCss]);
+
+  const themeName = designBrief?.themeName || 'default';
 
   return (
-    <ThemeContext.Provider value={designBrief}>
-      <div className={`theme-${themeName} w-full h-full`}>
-        {children}
-      </div>
-    </ThemeContext.Provider>
+    <div className={`theme-${themeName} w-full h-full`}>
+      {children}
+    </div>
   );
 }
-
-export function useTheme() {
-  return useContext(ThemeContext);
-}
-
-export default ThemeProvider;

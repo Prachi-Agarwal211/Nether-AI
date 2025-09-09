@@ -64,107 +64,83 @@ export async function POST(req) {
 
       // --- DYNAMIC AGENDA GENERATION LOGIC ---
       if (blueprint && blueprint.slides && blueprint.slides.length > 2) {
-        // Extract titles from all slides *after* the Agenda slide
         const agendaTitles = blueprint.slides.slice(2).map(slide => slide.slide_title);
-        
-        // Find the Agenda slide (should be at index 1) and inject the titles into its summary
         if (blueprint.slides[1] && blueprint.slides[1].visual_element.type === 'Agenda') {
           console.log('[API] Dynamically injecting agenda with titles:', agendaTitles);
-          // Create a summary from the titles for the AI to work with
-          blueprint.slides[1].slide_summary = "This is the agenda for the presentation. It will cover the following topics: " + agendaTitles.join(', ');
-          // We can also add the raw points if the layout needs them
+          blueprint.slides[1].slide_summary = "This presentation will cover: " + agendaTitles.join(', ');
           blueprint.slides[1].content_points = agendaTitles;
         }
       }
-      // --- END OF AGENDA LOGIC ---
 
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         async start(controller) {
-          console.log('[API Stream] Starting generation process...');
-          let isClosed = false;
           const push = (event) => {
-            if (!isClosed) {
-              try {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
-              } catch (error) {
-                console.error('[API Stream] Controller enqueue error:', error);
-                isClosed = true;
-              }
-            }
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+            } catch (e) { console.error('Stream push error:', e); }
           };
-          
+
           try {
+            // Generate design system ONCE before processing slides
             let designSystem = selectedTheme;
-            
-            if (!designSystem && topic && angle) {
-              console.log('[API Stream] Stage 1: Generating new design system...');
+            if (!designSystem) {
+              console.log('[API Stream] Stage 1: Generating design system...');
               designSystem = await AiCore.generateDesignSystem(topic, angle);
-              console.log('[API Stream] Stage 1: Design system generated.');
               push({ type: 'design_system', designSystem });
-              if (designSystem) {
-                saveThemeToDatabase(designSystem).catch(console.error);
-              }
-            } else if (designSystem) {
-              console.log('[API Stream] Stage 1: Using selected theme.');
+              saveThemeToDatabase(designSystem).catch(console.error);
+            } else {
+              console.log('[API Stream] Stage 1: Using selected theme');
               push({ type: 'design_system', designSystem });
             }
 
+            // Process all slides with the same design system
             const slides = blueprint?.slides || [];
-            console.log(`[API Stream] Stage 2: Starting generation for ${slides.length} slides in parallel.`);
             const t = blueprint?.topic || topic;
+            console.log(`[API Stream] Stage 2: Generating ${slides.length} slides`);
+
             const promises = slides.map((slideBlueprint, index) => {
-              console.log(`[API Stream] Generating recipe for slide ${index + 1}...`);
               return AiCore.generateRecipeForSlide(slideBlueprint, t, designSystem, context)
                 .then(async (recipe) => {
                   if (recipe?.image_prompt) {
                     try {
                       const kws = String(recipe.image_prompt).split(/\s+/).filter(Boolean);
                       const imageUrl = await AiCore.generateImagePublicUrl({ keywords: kws });
-                      if (imageUrl) {
-                        recipe.props = recipe.props || {};
-                        recipe.props.imageUrl = imageUrl;
-                      }
-                    } catch (_) { /* ignore image errors per slide */ }
+                      if (imageUrl) recipe.props = { ...recipe.props, imageUrl };
+                    } catch (_) { /* ignore */ }
                   }
                   recipe.slide_id = slideBlueprint.slide_id;
-                  console.log(`[API Stream] Successfully generated recipe for slide ${index + 1}`);
                   push({ type: 'recipe', recipe, index });
                   return recipe;
                 })
                 .catch((error) => {
-                  console.error(`[API Stream] FAILED to generate recipe for slide ${index + 1}:`, error.message);
-                  push({ type: 'error', message: `Failed on slide ${index + 1}: ${error.message}`, index });
-                  const fallback = {
+                  console.error(`[API Stream] Slide ${index + 1} error:`, error);
+                  push({ type: 'error', message: error.message, index });
+                  return {
                     layout_type: 'FallbackLayout',
-                    props: { title: `Error Generating Slide ${index + 1}`, errorMessage: error.message },
-                    slide_id: slideBlueprint?.slide_id || `error_${index}_${Date.now()}`,
+                    props: { errorMessage: error.message },
+                    slide_id: `error_${index}`
                   };
-                  push({ type: 'recipe', recipe: fallback, index });
-                  return fallback;
                 });
             });
 
             await Promise.all(promises);
-            console.log('[API Stream] Stage 2 & 3: All slide generations settled.');
+            console.log('[API Stream] Generation complete');
           } catch (error) {
-            console.error('[API Stream] FATAL STREAM ERROR:', error);
-            push({ type: 'error', message: `Stream error: ${error.message}` });
+            console.error('[API Stream] Fatal error:', error);
+            push({ type: 'error', message: error.message });
           } finally {
-            console.log('[API Stream] Closing stream.');
-            if (!isClosed) {
-              try { controller.close(); isClosed = true; } catch (error) { /* ignore */ }
-            }
+            controller.close();
           }
-        },
+        }
       });
 
       return new Response(stream, {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache, no-transform',
-          Connection: 'keep-alive',
-        },
+          Connection: 'keep-alive'
+        }
       });
     }
 

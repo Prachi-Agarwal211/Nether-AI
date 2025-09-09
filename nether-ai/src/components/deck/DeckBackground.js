@@ -1,30 +1,31 @@
 'use client';
-
-import { motion } from 'framer-motion';
+import { motion, useAnimation } from 'framer-motion';
+import { useEffect, useMemo } from 'react';
 import { generateBackgroundCss } from '@/core/themeUtils';
-import { useMemo } from 'react';
 
 export default function DeckBackground({ designSystem, backgroundVariant = 'default', animated = true }) {
+  const controls = useAnimation();
+  
+  const backgroundStyle = useMemo(() => {
+    const background = generateBackgroundCss(designSystem, backgroundVariant);
+    return { background };
+  }, [designSystem, backgroundVariant]);
 
-  const backgroundStyle = useMemo(() => ({
-    background: generateBackgroundCss(designSystem, backgroundVariant)
-  }), [designSystem, backgroundVariant]);
+  // Cleanup animations on unmount
+  useEffect(() => {
+    return () => {
+      controls.stop();
+    };
+  }, [controls]);
 
   if (!designSystem) return null;
 
-  const bgVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 1.0, ease: 'easeInOut' } },
-  };
-
-  const Container = animated ? motion.div : 'div';
-
   return (
-    <Container
-      variants={animated ? bgVariants : undefined}
-      initial={animated ? 'hidden' : undefined}
-      animate={animated ? 'visible' : undefined}
+    <motion.div 
       className="absolute inset-0 w-full h-full z-0"
+      initial={animated ? { opacity: 0 } : false}
+      animate={controls}
+      transition={{ duration: 0.5 }}
       style={backgroundStyle}
     />
   );

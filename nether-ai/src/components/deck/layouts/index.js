@@ -15,3 +15,4 @@ export * from './KpiGrid';
 export * from './FullBleedImageLayout';
 export * from './TitleAndBulletsLayout';
 export * from './ContactInfoLayout';
+export * from './SlideWrapper';

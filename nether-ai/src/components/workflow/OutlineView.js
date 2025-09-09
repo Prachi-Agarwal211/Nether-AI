@@ -31,7 +31,10 @@ export default function OutlineView() {
     setLoading(true);
     setActiveView('deck');
     const slideCount = presentation?.blueprint?.slides?.length || 0;
+    
+    // Reset both slide recipes AND design system
     setSlideRecipes(Array(slideCount).fill(null));
+    setDesignSystem(null);
 
     const { topic, chosenAngle, blueprint, audience, tone, objective } = presentation;
     const context = { audience, tone, objective };
@@ -40,7 +43,7 @@ export default function OutlineView() {
       blueprint,
       topic,
       angle: chosenAngle,
-      context, // Pass the context here
+      context,
       onEvent: (event) => {
         if (event.type === 'design_system') {
           setDesignSystem(event.designSystem);
